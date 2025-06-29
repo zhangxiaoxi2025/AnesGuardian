@@ -17,10 +17,9 @@ Anesthesia Guardian (麻醉守护神) is a comprehensive medical AI system desig
 ### Backend Architecture
 - **Runtime**: Node.js with Express.js
 - **Language**: TypeScript with ESM modules
-- **Database**: PostgreSQL with Drizzle ORM
-- **Database Provider**: Neon Database (@neondatabase/serverless)
-- **AI Integration**: OpenAI GPT-4o for medical analysis
-- **Session Management**: PostgreSQL-based sessions
+- **Database**: In-memory storage for development (MemStorage)
+- **AI Integration**: Google Gemini API (gemini-1.5-flash) for medical analysis
+- **Session Management**: In-memory session storage
 
 ### Database Design
 The system uses three main tables:
@@ -91,8 +90,7 @@ The system evaluates multiple risk categories:
 - **AI Services**: OpenAI API integration via OPENAI_API_KEY
 
 ### Environment Variables Required
-- `DATABASE_URL`: PostgreSQL connection string
-- `OPENAI_API_KEY`: OpenAI API authentication key
+- `GEMINI_API_KEY`: Google Gemini API authentication key
 - `NODE_ENV`: Environment specification (development/production)
 
 ## User Preferences
@@ -101,5 +99,10 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
-Changelog:
-- June 29, 2025. Initial setup
+- June 29, 2025: Successfully migrated from OpenAI API to Google Gemini API (gemini-1.5-flash)
+  - Replaced all OpenAI API calls with Gemini API integration
+  - Updated service files to use GoogleGenAI client with proper authentication
+  - Fixed JSON parsing and error handling for Gemini responses
+  - Verified multi-agent assessment system working with Gemini AI
+  - Updated environment variables from OPENAI_API_KEY to GEMINI_API_KEY
+- June 29, 2025: Initial setup with OpenAI integration

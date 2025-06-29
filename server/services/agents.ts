@@ -1,5 +1,5 @@
 import { storage } from "../storage";
-import { analyzePatientRisks, analyzeDrugInteractions, searchClinicalGuidelines, extractMedicalInformation } from "./openai";
+import { analyzePatientRisks, analyzeDrugInteractions, searchClinicalGuidelines, extractMedicalInformation } from "./gemini";
 import type { Patient, Assessment, AgentStatus, RiskFactor, DrugInteraction, ClinicalGuideline } from "@shared/schema";
 
 export class AgentOrchestrator {
@@ -217,7 +217,9 @@ export class AgentOrchestrator {
 
     // Add drug interaction recommendations
     drugInteractions.forEach(di => {
-      recommendations.push(...di.recommendations);
+      if (di.recommendations && Array.isArray(di.recommendations)) {
+        recommendations.push(...di.recommendations);
+      }
     });
 
     // Add guideline-based recommendations

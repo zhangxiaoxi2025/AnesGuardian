@@ -1,7 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Use Gemini API as requested by user  
-const genAI = new GoogleGenAI(process.env.GEMINI_API_KEY || "");
+// Use Gemini API as requested by user
+const genAI = new GoogleGenAI({
+  apiKey: process.env.GEMINI_API_KEY!
+});
 
 export async function analyzePatientRisks(patientData: any): Promise<any> {
   try {
@@ -18,7 +20,7 @@ Please provide a detailed risk assessment in JSON format with the following stru
       "type": "airway|cardiovascular|thrombosis|ponv|other",
       "level": "low|medium|high",
       "description": "detailed description",
-      "score": number,
+      "score": 2,
       "recommendations": ["recommendation1", "recommendation2"]
     }
   ],
@@ -35,7 +37,7 @@ Focus on:
 Provide evidence-based recommendations for each risk factor.`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-2.5-flash-lite-preview-06-17",
+      model: "gemini-1.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -62,9 +64,18 @@ Provide evidence-based recommendations for each risk factor.`;
       }
     });
 
-    return JSON.parse(response.text || '{}');
+    const responseText = response.text || '{}';
+    
+    try {
+      const parsed = JSON.parse(responseText);
+      return parsed;
+    } catch (parseError) {
+      console.error('JSON parsing failed for risk analysis, response text:', responseText);
+      console.error('Parse error:', parseError);
+      throw parseError;
+    }
   } catch (error) {
-    console.error('OpenAI API Error:', error);
+    console.error('Gemini API Error:', error);
     
     // Return fallback analysis based on patient data
     const patient = patientData.patient;
@@ -128,14 +139,34 @@ Focus on clinically significant interactions that could affect:
 4. Drug metabolism
 5. Recovery time`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
+    const response = await genAI.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            interactions: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  drugs: { type: "array", items: { type: "string" } },
+                  severity: { type: "string" },
+                  description: { type: "string" },
+                  recommendations: { type: "array", items: { type: "string" } }
+                }
+              }
+            },
+            monitoringRecommendations: { type: "array", items: { type: "string" } }
+          }
+        }
+      }
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error('Drug interaction analysis failed:', error);
     
@@ -205,14 +236,35 @@ Include guidelines for:
 - PONV prevention
 - Specific conditions mentioned in risk factors`;
 
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.3,
+    const response = await genAI.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            guidelines: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  title: { type: "string" },
+                  organization: { type: "string" },
+                  year: { type: "number" },
+                  relevance: { type: "string" },
+                  summary: { type: "string" },
+                  recommendations: { type: "array", items: { type: "string" } }
+                }
+              }
+            }
+          }
+        }
+      }
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error('Clinical guidelines search failed:', error);
     
@@ -244,53 +296,56 @@ Include guidelines for:
 
 export async function extractMedicalInformation(medicalRecords: string): Promise<any> {
   try {
-    const prompt = `You are a medical information extraction AI agent. Extract and structure key medical information from the provided medical records.
+    const prompt = `You are a medical information extraction AI agent. Extract structured information from medical records.
 
 Medical Records:
 ${medicalRecords}
 
 Extract information in JSON format:
 {
-  "demographics": {
-    "age": number,
-    "gender": "male|female",
-    "weight": number,
-    "height": number,
-    "bmi": number
-  },
-  "medicalHistory": ["condition1", "condition2"],
-  "surgicalHistory": ["surgery1", "surgery2"],
-  "medications": ["medication1", "medication2"],
-  "allergies": ["allergy1", "allergy2"],
-  "vitalSigns": {
-    "bloodPressure": "systolic/diastolic",
-    "heartRate": number,
-    "temperature": number,
-    "respiratoryRate": number,
-    "oxygenSaturation": number
-  },
-  "labResults": {
-    "hemoglobin": number,
-    "hematocrit": number,
-    "platelets": number,
-    "creatinine": number,
-    "glucose": number
-  },
-  "keyFindings": ["finding1", "finding2"]
-}
+  "extractedInfo": {
+    "demographics": {
+      "age": number,
+      "gender": "string",
+      "weight": number,
+      "height": number
+    },
+    "medicalHistory": ["condition1", "condition2"],
+    "medications": ["medication1", "medication2"],
+    "allergies": ["allergy1", "allergy2"],
+    "vitalSigns": {
+      "bloodPressure": "string",
+      "heartRate": number,
+      "temperature": number
+    },
+    "labResults": {
+      "hemoglobin": number,
+      "glucose": number,
+      "creatinine": number
+    }
+  }
+}`;
 
-Focus on information relevant to anesthetic management and perioperative care.`;
-
-    const response = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-      temperature: 0.2,
+    const response = await genAI.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json"
+      }
     });
 
-    return JSON.parse(response.choices[0].message.content || '{}');
+    return JSON.parse(response.text || '{}');
   } catch (error) {
     console.error('Medical information extraction failed:', error);
-    throw new Error(`Medical information extraction failed: ${error.message}`);
+    return {
+      extractedInfo: {
+        demographics: {},
+        medicalHistory: [],
+        medications: [],
+        allergies: [],
+        vitalSigns: {},
+        labResults: {}
+      }
+    };
   }
 }

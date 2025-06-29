@@ -75,6 +75,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post("/api/patients/:patientId/assess", async (req, res) => {
+    try {
+      const patientId = parseInt(req.params.patientId);
+      
+      // Check if patient exists
+      const patient = await storage.getPatient(patientId);
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+
+      // Create new assessment
+      const assessment = await storage.createAssessment({
+        patientId,
+        status: "in_progress"
+      });
+
+      // Start the agent orchestration
+      const orchestrator = new AgentOrchestrator(assessment.id);
+      
+      // Run assessment in background
+      orchestrator.runAssessment(patientId)
+        .catch(error => {
+          console.error('Background assessment failed:', error);
+        });
+
+      res.json({ message: "Assessment started", assessmentId: assessment.id });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   app.get("/api/patients/:patientId/assessment", async (req, res) => {
     try {
       const patientId = parseInt(req.params.patientId);
@@ -84,7 +115,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(assessment);
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: (error as Error).message });
     }
   });
 
