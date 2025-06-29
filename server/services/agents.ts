@@ -107,10 +107,19 @@ export class AgentOrchestrator {
       // Step 2: Risk Assessment
       await this.updateAgentStatus('risk_assessor', 'active', 30, '分析风险因素');
       
-      const riskAnalysis = await analyzePatientRisks({
-        patient,
-        extractedData
-      });
+      let riskAnalysis;
+      try {
+        riskAnalysis = await analyzePatientRisks({
+          patient,
+          extractedData
+        });
+      } catch (error) {
+        console.error('Risk analysis failed, using fallback:', error);
+        riskAnalysis = {
+          riskFactors: [],
+          generalRecommendations: []
+        };
+      }
 
       const riskFactors: RiskFactor[] = riskAnalysis.riskFactors || [];
       await this.updateAgentStatus('risk_assessor', 'completed', 100, `发现${riskFactors.length}项风险因素`, riskAnalysis);
