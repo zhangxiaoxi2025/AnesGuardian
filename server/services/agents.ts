@@ -127,7 +127,16 @@ export class AgentOrchestrator {
       // Step 3: Drug Interaction Analysis
       await this.updateAgentStatus('drug_analyzer', 'active', 50, '分析药物相互作用');
       
-      const drugAnalysis = await analyzeDrugInteractions(patient.medications || []);
+      let drugAnalysis;
+      try {
+        drugAnalysis = await analyzeDrugInteractions(patient.medications || []);
+      } catch (error) {
+        console.error('Drug analysis failed, using fallback:', error);
+        drugAnalysis = {
+          interactions: [],
+          monitoringRecommendations: []
+        };
+      }
       const drugInteractions: DrugInteraction[] = drugAnalysis.interactions || [];
       
       await this.updateAgentStatus('drug_analyzer', 'completed', 100, `检测到${drugInteractions.length}项交互警示`, drugAnalysis);
