@@ -90,7 +90,7 @@ export default function Chat() {
         <h1 className="text-2xl font-bold text-gray-900">AI智能问答</h1>
         <Badge variant="outline" className="text-blue-600">
           <i className="fas fa-robot mr-2"></i>
-          Gemini AI
+          麻醉智能AI
         </Badge>
       </div>
 
