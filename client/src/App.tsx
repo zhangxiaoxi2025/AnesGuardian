@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import PatientForm from "@/pages/patient-form";
 import Patients from "@/pages/patients";
 import Agents from "@/pages/agents";
+import Chat from "@/pages/chat";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -17,6 +18,7 @@ function Router() {
       <Route path="/patients/new" component={PatientForm} />
       <Route path="/patients" component={Patients} />
       <Route path="/agents" component={Agents} />
+      <Route path="/chat" component={Chat} />
       <Route path="/risk" component={Dashboard} />
       <Route path="/drugs" component={Dashboard} />
       <Route path="/guidelines" component={Dashboard} />

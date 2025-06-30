@@ -99,6 +99,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 30, 2025: Added AI Chat feature for medical Q&A
+  - Created dedicated AI问答 page with real-time chat interface
+  - Integrated Gemini API for professional medical question answering
+  - Added chat service with specialized prompts for anesthesiology/perioperative care
+  - Fixed sidebar navigation routing issues
+  - Verified chat functionality with comprehensive medical responses in Chinese
 - June 29, 2025: Successfully migrated from OpenAI API to Google Gemini API (gemini-1.5-flash)
   - Replaced all OpenAI API calls with Gemini API integration
   - Updated service files to use GoogleGenAI client with proper authentication

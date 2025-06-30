@@ -204,6 +204,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // AI Chat endpoint
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const { message } = req.body;
+      
+      if (!message || typeof message !== 'string') {
+        return res.status(400).json({ message: "Message is required" });
+      }
+
+      const { getChatResponse } = await import('./services/chat');
+      const aiResponse = await getChatResponse(message);
+
+      res.json({ response: aiResponse });
+    } catch (error) {
+      console.error('Chat error:', error);
+      res.status(500).json({ message: "AI服务暂时不可用" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

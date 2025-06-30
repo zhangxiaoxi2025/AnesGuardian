@@ -6,6 +6,7 @@ const navigation = [
   { name: '工作台', href: '/dashboard', icon: 'fas fa-dashboard' },
   { name: '患者管理', href: '/patients', icon: 'fas fa-users' },
   { name: 'AI智能体', href: '/agents', icon: 'fas fa-brain' },
+  { name: 'AI问答', href: '/chat', icon: 'fas fa-comments' },
   { name: '风险评估', href: '/risk', icon: 'fas fa-chart-line' },
   { name: '药物交互', href: '/drugs', icon: 'fas fa-pills' },
   { name: '临床指南', href: '/guidelines', icon: 'fas fa-book-medical' },
