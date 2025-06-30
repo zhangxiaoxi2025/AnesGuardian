@@ -199,6 +199,30 @@ export default function Dashboard() {
     enabled: !!currentPatientId,
   });
 
+  // Reset assessment mutation
+  const resetAssessmentMutation = useMutation({
+    mutationFn: async (patientId: number) => {
+      const response = await apiRequest(`/api/patients/${patientId}/assessment/reset`, {
+        method: 'POST'
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
+      toast({
+        title: "评估已重启",
+        description: "AI智能体正在重新分析患者数据"
+      });
+    },
+    onError: () => {
+      toast({
+        title: "重启评估失败",
+        description: "请稍后重试",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Start assessment mutation
   const startAssessmentMutation = useMutation({
     mutationFn: async (assessmentId: number) => {
@@ -294,6 +318,29 @@ export default function Dashboard() {
               当前患者: <span className="font-medium">{patient.name}</span> | 
               手术类型: <span className="font-medium">{patient.surgeryType}</span>
             </p>
+          </div>
+          <div className="flex items-center space-x-3">
+            {assessment?.status === 'in_progress' && (
+              <Button
+                variant="outline"
+                onClick={() => currentPatientId && resetAssessmentMutation.mutate(currentPatientId)}
+                disabled={resetAssessmentMutation.isPending}
+                className="bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+              >
+                <i className="fas fa-redo mr-2"></i>
+                {resetAssessmentMutation.isPending ? '重启中...' : '重启评估'}
+              </Button>
+            )}
+            {assessment?.status === 'failed' && (
+              <Button
+                onClick={() => currentPatientId && resetAssessmentMutation.mutate(currentPatientId)}
+                disabled={resetAssessmentMutation.isPending}
+                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
+              >
+                <i className="fas fa-exclamation-triangle mr-2"></i>
+                {resetAssessmentMutation.isPending ? '重试中...' : '重试评估'}
+              </Button>
+            )}
           </div>
           <div className="flex items-center space-x-4">
             <div className="flex items-center space-x-2">

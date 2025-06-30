@@ -128,18 +128,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get existing assessment
       let assessment = await storage.getAssessmentByPatientId(patientId);
       
-      if (assessment) {
-        // Reset the assessment
-        assessment = await storage.updateAssessment(assessment.id, {
-          status: 'in_progress',
-          overallRisk: null,
-          riskFactors: [],
-          drugInteractions: [],
-          clinicalGuidelines: [],
-          recommendations: [],
-          agentStatus: {}
-        });
-      } else {
+      if (!assessment) {
         // Create new assessment
         assessment = await storage.createAssessment({
           patientId,
@@ -153,17 +142,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Start the simplified agent orchestration
-      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
-      const orchestrator = new SimpleAgentOrchestrator(assessment.id);
+      // Use AssessmentManager for robust handling
+      const { AssessmentManager } = await import('./services/assessment-manager');
+      const manager = AssessmentManager.getInstance();
       
-      // Run assessment in background
-      orchestrator.runAssessment(patientId)
-        .catch(error => {
-          console.error('Background assessment failed:', error);
-        });
+      const resetAssessment = await manager.resetAssessment(patientId, assessment.id);
 
-      res.json({ message: "Assessment reset and restarted", assessment });
+      res.json({ 
+        message: "Assessment reset and restarted", 
+        assessment: resetAssessment || assessment 
+      });
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
