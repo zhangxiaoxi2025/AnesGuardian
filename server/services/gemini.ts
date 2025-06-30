@@ -44,22 +44,33 @@ Provide evidence-based recommendations for each risk factor.`;
         responseSchema: {
           type: "object",
           properties: {
-            overallRisk: { type: "string" },
+            overallRisk: { type: "string", enum: ["low", "medium", "high"] },
             riskFactors: {
               type: "array",
+              maxItems: 5,
               items: {
                 type: "object",
                 properties: {
-                  type: { type: "string" },
-                  level: { type: "string" },
-                  description: { type: "string" },
-                  score: { type: "number" },
-                  recommendations: { type: "array", items: { type: "string" } }
-                }
+                  type: { type: "string", enum: ["airway", "cardiovascular", "thrombosis", "ponv", "other"] },
+                  level: { type: "string", enum: ["low", "medium", "high"] },
+                  description: { type: "string", maxLength: 200 },
+                  score: { type: "number", minimum: 1, maximum: 10 },
+                  recommendations: { 
+                    type: "array", 
+                    maxItems: 3,
+                    items: { type: "string", maxLength: 100 } 
+                  }
+                },
+                required: ["type", "level", "description", "score", "recommendations"]
               }
             },
-            generalRecommendations: { type: "array", items: { type: "string" } }
-          }
+            generalRecommendations: { 
+              type: "array", 
+              maxItems: 5,
+              items: { type: "string", maxLength: 100 } 
+            }
+          },
+          required: ["overallRisk", "riskFactors", "generalRecommendations"]
         }
       }
     });
