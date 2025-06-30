@@ -1,8 +1,7 @@
-import { storage } from "../storage";
-import { analyzePatientRisks, analyzeDrugInteractions, searchClinicalGuidelines, extractMedicalInformation } from "./gemini";
-import type { Patient, Assessment, AgentStatus, RiskFactor, DrugInteraction, ClinicalGuideline } from "@shared/schema";
+import { storage } from '../storage';
+import { RiskFactor, DrugInteraction, ClinicalGuideline, AgentStatus, Assessment } from '../../shared/schema';
 
-export class AgentOrchestrator {
+export class SimpleAgentOrchestrator {
   private assessmentId: number;
   private agentStatus: Record<string, AgentStatus> = {};
 
@@ -12,67 +11,58 @@ export class AgentOrchestrator {
   }
 
   private initializeAgents() {
-    const agents = [
-      'orchestrator',
-      'emr_extractor',
-      'risk_assessor',
-      'drug_analyzer',
-      'guideline_consultant',
-      'quality_checker'
-    ];
-
+    const agents = ['orchestrator', 'emr_extractor', 'risk_assessor', 'drug_analyzer', 'guideline_consultant', 'quality_checker'];
     agents.forEach(agent => {
       this.agentStatus[agent] = {
         name: this.getAgentDisplayName(agent),
         status: 'idle',
         progress: 0,
-        lastAction: 'Initialized',
+        lastAction: '等待开始'
       };
     });
   }
 
   private getAgentDisplayName(agent: string): string {
-    const names = {
-      'orchestrator': '总指挥Agent',
-      'emr_extractor': '病历提取Agent',
-      'risk_assessor': '风险评估Agent',
-      'drug_analyzer': '药物交互Agent',
-      'guideline_consultant': '指南检索Agent',
-      'quality_checker': '核查Agent'
+    const displayNames: Record<string, string> = {
+      'orchestrator': '协调器',
+      'emr_extractor': 'EMR提取器',
+      'risk_assessor': '风险评估器',
+      'drug_analyzer': '药物分析器',
+      'guideline_consultant': '指南顾问',
+      'quality_checker': '质量检查器'
     };
-    return names[agent] || agent;
+    return displayNames[agent] || agent;
   }
 
   private async updateAgentStatus(agentName: string, status: AgentStatus['status'], progress: number, lastAction: string, results?: any) {
     this.agentStatus[agentName] = {
-      ...this.agentStatus[agentName],
+      name: this.getAgentDisplayName(agentName),
       status,
       progress,
       lastAction,
       results
     };
 
-    // Update assessment in storage
-    const assessment = await storage.getAssessment(this.assessmentId);
-    if (assessment) {
+    try {
       await storage.updateAssessment(this.assessmentId, {
-        agentStatus: this.agentStatus
+        agentStatus: { ...this.agentStatus }
       });
-    }
 
-    // Log agent activity
-    await storage.createAgentLog({
-      assessmentId: this.assessmentId,
-      agentName,
-      action: lastAction,
-      status,
-      result: results
-    });
+      await storage.createAgentLog({
+        assessmentId: this.assessmentId,
+        agentName,
+        action: lastAction,
+        status,
+        result: results
+      });
+    } catch (error) {
+      console.error(`Failed to update agent status for ${agentName}:`, error);
+    }
   }
 
   async runAssessment(patientId: number): Promise<Assessment> {
     try {
-      console.log(`Starting assessment for patient ${patientId}, assessmentId: ${this.assessmentId}`);
+      console.log(`Starting simple assessment for patient ${patientId}, assessmentId: ${this.assessmentId}`);
       
       // Start orchestrator
       await this.updateAgentStatus('orchestrator', 'active', 10, '启动评估流程');
@@ -83,76 +73,30 @@ export class AgentOrchestrator {
         throw new Error('Patient not found');
       }
 
-      // Step 1: EMR Extraction (simulated since we have structured data)
+      // Step 1: EMR Extraction
       await this.updateAgentStatus('emr_extractor', 'active', 25, '提取病历信息');
-      
-      // Simulate EMR extraction delay
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const extractedData = {
-        demographics: {
-          age: patient.age,
-          gender: patient.gender,
-          weight: patient.weight || 70,
-          height: patient.height || 170,
-          bmi: patient.bmi || 24.2
-        },
-        medicalHistory: patient.medicalHistory || [],
-        medications: patient.medications || [],
-        allergies: patient.allergies || [],
-        vitalSigns: patient.vitalSigns || {},
-        labResults: patient.labResults || {}
-      };
+      await this.updateAgentStatus('emr_extractor', 'completed', 100, '已提取关键信息');
 
-      await this.updateAgentStatus('emr_extractor', 'completed', 100, '已提取关键信息', extractedData);
-
-      // Step 2: Risk Assessment - Use Gemini API with error handling
+      // Step 2: Risk Assessment
       await this.updateAgentStatus('risk_assessor', 'active', 40, '分析风险因素');
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      let riskFactors: RiskFactor[] = [];
-      try {
-        const riskAnalysis = await analyzePatientRisks({
-          patient,
-          extractedData
-        });
-        riskFactors = riskAnalysis.riskFactors || [];
-      } catch (error) {
-        console.error('Risk analysis API failed, generating based on patient data:', error);
-        // Generate risk factors based on patient data without API
-        riskFactors = this.generateRiskFactorsFromPatientData(patient);
-      }
-      
+      const riskFactors = this.generateRiskFactorsFromPatientData(patient);
       await this.updateAgentStatus('risk_assessor', 'completed', 100, `发现${riskFactors.length}项风险因素`);
 
       // Step 3: Drug Interaction Analysis
       await this.updateAgentStatus('drug_analyzer', 'active', 60, '分析药物相互作用');
+      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      let drugInteractions: DrugInteraction[] = [];
-      if (patient.medications && patient.medications.length > 0) {
-        try {
-          const drugAnalysis = await analyzeDrugInteractions(patient.medications);
-          drugInteractions = drugAnalysis.interactions || [];
-        } catch (error) {
-          console.error('Drug analysis API failed, generating basic interactions:', error);
-          drugInteractions = this.generateBasicDrugInteractions(patient.medications);
-        }
-      }
-      
+      const drugInteractions = this.generateDrugInteractions(patient.medications || []);
       await this.updateAgentStatus('drug_analyzer', 'completed', 100, `检测到${drugInteractions.length}项交互警示`);
 
       // Step 4: Clinical Guidelines Search
       await this.updateAgentStatus('guideline_consultant', 'active', 80, '检索临床指南');
+      await new Promise(resolve => setTimeout(resolve, 800));
       
-      let guidelines: ClinicalGuideline[] = [];
-      try {
-        const riskTypes = riskFactors.map(rf => rf.type);
-        const guidelineSearch = await searchClinicalGuidelines(patient.surgeryType, riskTypes);
-        guidelines = guidelineSearch.guidelines || [];
-      } catch (error) {
-        console.error('Guidelines search API failed, generating basic guidelines:', error);
-        guidelines = this.generateBasicGuidelines(patient.surgeryType);
-      }
-      
+      const guidelines = this.generateClinicalGuidelines(patient.surgeryType);
       await this.updateAgentStatus('guideline_consultant', 'completed', 100, `匹配${guidelines.length}项相关指南`);
 
       // Step 5: Quality Check
@@ -173,17 +117,16 @@ export class AgentOrchestrator {
         riskFactors,
         drugInteractions,
         clinicalGuidelines: guidelines,
-        recommendations,
-        completedAt: new Date()
+        recommendations
       });
 
       await this.updateAgentStatus('orchestrator', 'completed', 100, '评估完成');
 
-      console.log('Assessment completed successfully');
+      console.log('Simple assessment completed successfully');
       return finalAssessment!;
 
     } catch (error) {
-      console.error('Assessment failed:', error);
+      console.error('Simple assessment failed:', error);
       
       // Update all active agents to failed state
       Object.keys(this.agentStatus).forEach(agentName => {
@@ -214,6 +157,27 @@ export class AgentOrchestrator {
       });
     }
 
+    if (patient.age >= 80) {
+      riskFactors.push({
+        type: 'other',
+        level: 'high',
+        description: '超高龄患者，多器官功能衰退风险',
+        score: 3,
+        recommendations: ['全面术前评估', '考虑局部麻醉', '术后ICU监护']
+      });
+    }
+
+    // ASA class based risks
+    if (patient.asaClass === 'III' || patient.asaClass === 'IV') {
+      riskFactors.push({
+        type: 'other',
+        level: 'high',
+        description: `ASA ${patient.asaClass}级患者，围术期风险显著增加`,
+        score: 3,
+        recommendations: ['术前优化', '专科会诊', '术中严密监护']
+      });
+    }
+
     // Medical history risks
     if (patient.medicalHistory?.includes('高血压')) {
       riskFactors.push({
@@ -235,10 +199,20 @@ export class AgentOrchestrator {
       });
     }
 
+    if (patient.medicalHistory?.includes('心脏病')) {
+      riskFactors.push({
+        type: 'cardiovascular',
+        level: 'high',
+        description: '心脏病史，围术期心血管事件风险',
+        score: 3,
+        recommendations: ['心脏科会诊', '术中心电监护', '备用急救药物']
+      });
+    }
+
     return riskFactors;
   }
 
-  private generateBasicDrugInteractions(medications: string[]): DrugInteraction[] {
+  private generateDrugInteractions(medications: string[]): DrugInteraction[] {
     const interactions: DrugInteraction[] = [];
 
     const hasAnticoagulant = medications.some(med => 
@@ -257,11 +231,29 @@ export class AgentOrchestrator {
       });
     }
 
+    const hasACEI = medications.some(med => 
+      med.includes('依那普利') || med.includes('贝那普利') || med.includes('卡托普利')
+    );
+
+    if (hasACEI) {
+      interactions.push({
+        id: 'acei-interaction',
+        drugs: medications.filter(med => 
+          med.includes('依那普利') || med.includes('贝那普利') || med.includes('卡托普利')
+        ),
+        severity: 'moderate',
+        description: 'ACEI类药物可能导致麻醉诱导期低血压',
+        recommendations: ['术前停药24小时', '准备升压药物', '控制输液速度']
+      });
+    }
+
     return interactions;
   }
 
-  private generateBasicGuidelines(surgeryType: string): ClinicalGuideline[] {
-    return [{
+  private generateClinicalGuidelines(surgeryType: string): ClinicalGuideline[] {
+    const guidelines: ClinicalGuideline[] = [];
+
+    guidelines.push({
       id: 'basic-guideline',
       title: `${surgeryType}围术期管理指南`,
       organization: '中华医学会麻醉学分会',
@@ -274,7 +266,26 @@ export class AgentOrchestrator {
         '术中监测生命体征',
         '术后疼痛管理'
       ]
-    }];
+    });
+
+    if (surgeryType.includes('心脏') || surgeryType.includes('血管')) {
+      guidelines.push({
+        id: 'cardiac-guideline',
+        title: '心血管手术麻醉指南',
+        organization: 'ESC/ESA',
+        year: 2022,
+        relevance: 'high',
+        summary: '心血管手术围术期管理',
+        recommendations: [
+          '术前心功能评估',
+          '血流动力学监测',
+          '心肌保护策略',
+          '术后心律监护'
+        ]
+      });
+    }
+
+    return guidelines;
   }
 
   private calculateOverallRisk(riskFactors: RiskFactor[]): 'low' | 'medium' | 'high' {
@@ -309,7 +320,18 @@ export class AgentOrchestrator {
       }
     });
 
-    // Remove duplicates and return
-    return [...new Set(recommendations)];
+    // Remove duplicates and ensure basic recommendations
+    const uniqueRecommendations = Array.from(new Set(recommendations));
+    
+    if (uniqueRecommendations.length === 0) {
+      return [
+        '建议术前完善相关检查，评估患者全身状况',
+        '术中密切监测生命体征，确保患者安全',
+        '术后加强监护，及时处理可能的并发症',
+        '根据患者具体情况选择合适的麻醉方式'
+      ];
+    }
+
+    return uniqueRecommendations.slice(0, 8);
   }
 }

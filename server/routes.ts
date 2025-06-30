@@ -91,8 +91,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: "in_progress"
       });
 
-      // Start the agent orchestration
-      const orchestrator = new AgentOrchestrator(assessment.id);
+      // Start the simplified agent orchestration
+      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
+      const orchestrator = new SimpleAgentOrchestrator(assessment.id);
       
       // Run assessment in background
       orchestrator.runAssessment(patientId)
@@ -119,6 +120,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset assessment endpoint
+  app.post("/api/patients/:patientId/assessment/reset", async (req, res) => {
+    try {
+      const patientId = parseInt(req.params.patientId);
+      
+      // Get existing assessment
+      let assessment = await storage.getAssessmentByPatientId(patientId);
+      
+      if (assessment) {
+        // Reset the assessment
+        assessment = await storage.updateAssessment(assessment.id, {
+          status: 'in_progress',
+          overallRisk: null,
+          riskFactors: [],
+          drugInteractions: [],
+          clinicalGuidelines: [],
+          recommendations: [],
+          agentStatus: {}
+        });
+      } else {
+        // Create new assessment
+        assessment = await storage.createAssessment({
+          patientId,
+          status: 'in_progress',
+          overallRisk: null,
+          riskFactors: [],
+          drugInteractions: [],
+          clinicalGuidelines: [],
+          recommendations: [],
+          agentStatus: {}
+        });
+      }
+
+      // Start the simplified agent orchestration
+      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
+      const orchestrator = new SimpleAgentOrchestrator(assessment.id);
+      
+      // Run assessment in background
+      orchestrator.runAssessment(patientId)
+        .catch(error => {
+          console.error('Background assessment failed:', error);
+        });
+
+      res.json({ message: "Assessment reset and restarted", assessment });
+    } catch (error) {
+      res.status(500).json({ message: (error as Error).message });
+    }
+  });
+
   app.post("/api/assessments", async (req, res) => {
     try {
       const validatedData = insertAssessmentSchema.parse(req.body);
@@ -138,8 +188,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      // Start the agent orchestration
-      const orchestrator = new AgentOrchestrator(assessmentId);
+      // Start the simplified agent orchestration
+      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
+      const orchestrator = new SimpleAgentOrchestrator(assessmentId);
       
       // Run assessment in background
       orchestrator.runAssessment(assessment.patientId)

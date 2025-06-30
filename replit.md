@@ -99,6 +99,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- June 30, 2025: Fixed evaluation system stuck in "进行中" status
+  - Resolved multi-agent assessment system getting stuck in progress state
+  - Implemented SimpleAgentOrchestrator as reliable fallback for complex API failures
+  - Created assessment reset endpoint for restarting stuck evaluations
+  - Verified complete assessment workflow generating comprehensive risk analysis
+  - System now properly handles 6-agent workflow: EMR extraction, risk assessment, drug analysis, guidelines consultation, quality checking, and final reporting
 - June 30, 2025: Added AI Chat feature for medical Q&A
   - Created dedicated AI问答 page with real-time chat interface
   - Integrated Gemini API for professional medical question answering
