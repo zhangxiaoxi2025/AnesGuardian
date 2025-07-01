@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import type { ClinicalGuideline } from '@shared/schema';
 
@@ -9,6 +10,8 @@ interface ClinicalGuidelinesProps {
 }
 
 export function ClinicalGuidelines({ guidelines }: ClinicalGuidelinesProps) {
+  const [selectedGuideline, setSelectedGuideline] = useState<ClinicalGuideline | null>(null);
+
   const getRelevanceColor = (relevance: ClinicalGuideline['relevance']) => {
     switch (relevance) {
       case 'high':
@@ -70,13 +73,75 @@ export function ClinicalGuidelines({ guidelines }: ClinicalGuidelinesProps) {
                       )}>
                         {getRelevanceText(guideline.relevance)}
                       </span>
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        className="h-auto p-0 text-blue-600 hover:text-blue-800 text-xs"
-                      >
-                        查看详情
-                      </Button>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-auto p-0 text-blue-600 hover:text-blue-800 text-xs"
+                            onClick={() => setSelectedGuideline(guideline)}
+                          >
+                            查看详情
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="text-lg font-semibold">
+                              {guideline.title}
+                            </DialogTitle>
+                          </DialogHeader>
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="font-medium text-gray-700">发布机构：</span>
+                                <span className="text-gray-900">{guideline.organization}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">发布年份：</span>
+                                <span className="text-gray-900">{guideline.year}</span>
+                              </div>
+                              <div>
+                                <span className="font-medium text-gray-700">相关性：</span>
+                                <span className={cn(
+                                  'text-xs px-2 py-1 rounded ml-2',
+                                  getRelevanceColor(guideline.relevance)
+                                )}>
+                                  {getRelevanceText(guideline.relevance)}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            {guideline.summary && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">指南概要</h4>
+                                <p className="text-gray-700 text-sm leading-relaxed">
+                                  {guideline.summary}
+                                </p>
+                              </div>
+                            )}
+                            
+                            {guideline.recommendations.length > 0 && (
+                              <div>
+                                <h4 className="font-medium text-gray-900 mb-2">
+                                  关键建议 ({guideline.recommendations.length}项)
+                                </h4>
+                                <ul className="space-y-2">
+                                  {guideline.recommendations.map((rec, recIndex) => (
+                                    <li key={recIndex} className="flex items-start">
+                                      <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-800 rounded-full text-xs flex items-center justify-center font-medium mr-3 mt-0.5">
+                                        {recIndex + 1}
+                                      </span>
+                                      <span className="text-gray-700 text-sm leading-relaxed">
+                                        {rec}
+                                      </span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
                     </div>
                     {guideline.summary && (
                       <p className="text-xs text-gray-600 mb-2">{guideline.summary}</p>
