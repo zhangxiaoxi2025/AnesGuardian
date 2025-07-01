@@ -176,19 +176,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      // Start the simplified agent orchestration
-      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
-      const orchestrator = new SimpleAgentOrchestrator(assessmentId);
+      // Use AssessmentManager for robust timeout protection
+      const { AssessmentManager } = await import('./services/assessment-manager');
+      const manager = AssessmentManager.getInstance();
       
-      // Run assessment in background
-      orchestrator.runAssessment(assessment.patientId)
+      // Start assessment with timeout protection
+      manager.startAssessment(assessment.patientId, assessmentId)
         .catch(error => {
           console.error('Background assessment failed:', error);
         });
 
       res.json({ message: "Assessment started", assessmentId });
     } catch (error) {
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: (error as Error).message });
     }
   });
 

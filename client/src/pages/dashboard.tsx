@@ -202,10 +202,8 @@ export default function Dashboard() {
   // Reset assessment mutation
   const resetAssessmentMutation = useMutation({
     mutationFn: async (patientId: number) => {
-      const response = await apiRequest(`/api/patients/${patientId}/assessment/reset`, {
-        method: 'POST'
-      });
-      return response;
+      const response = await apiRequest('POST', `/api/patients/${patientId}/assessment/reset`);
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
