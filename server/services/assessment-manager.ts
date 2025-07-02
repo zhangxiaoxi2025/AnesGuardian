@@ -14,9 +14,12 @@ export class AssessmentManager {
   }
 
   async startAssessment(patientId: number, assessmentId: number): Promise<void> {
+    console.log(`AssessmentManager: Starting assessment ${assessmentId} for patient ${patientId}`);
+    
     // Cancel existing assessment for this patient if any
     this.cancelAssessment(assessmentId);
 
+    console.log(`AssessmentManager: Creating new orchestrator for assessment ${assessmentId}`);
     const orchestrator = new SimpleAgentOrchestrator(assessmentId);
     
     // Set timeout for 2 minutes
@@ -26,19 +29,26 @@ export class AssessmentManager {
     }, 120000); // 2 minutes timeout
 
     this.runningAssessments.set(assessmentId, { orchestrator, timeout });
+    console.log(`AssessmentManager: Starting orchestrator run for assessment ${assessmentId}`);
 
-    try {
-      await orchestrator.runAssessment(patientId);
-      this.cleanupAssessment(assessmentId);
-    } catch (error) {
-      console.error(`Assessment ${assessmentId} failed:`, error);
-      this.cleanupAssessment(assessmentId);
-      
-      // Mark assessment as failed
-      await storage.updateAssessment(assessmentId, {
-        status: 'failed'
-      });
-    }
+    // Run assessment in background to avoid blocking
+    setImmediate(async () => {
+      try {
+        await orchestrator.runAssessment(patientId);
+        console.log(`AssessmentManager: Assessment ${assessmentId} completed successfully`);
+        this.cleanupAssessment(assessmentId);
+      } catch (error) {
+        console.error(`AssessmentManager: Assessment ${assessmentId} failed:`, error);
+        this.cleanupAssessment(assessmentId);
+        
+        // Mark assessment as failed
+        await storage.updateAssessment(assessmentId, {
+          status: 'failed'
+        });
+      }
+    });
+
+    console.log(`AssessmentManager: Assessment ${assessmentId} started in background`);
   }
 
   async resetAssessment(patientId: number, assessmentId: number): Promise<Assessment | undefined> {
