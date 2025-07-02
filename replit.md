@@ -99,6 +99,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 2, 2025: Major Drug Interaction System Architecture Upgrade
+  - Migrated from hardcoded drug lists to PostgreSQL database with comprehensive drug information
+  - Created dedicated drugs table with id, name, aliases, category, and stopGuideline fields
+  - Implemented DrugService with search functionality and 25+ common anesthetic/medical drugs
+  - Added dynamic drug search API endpoint (GET /api/drugs/search?q={query})
+  - Completely rebuilt drug selection UI with professional multi-select Command/Popover components
+  - Added "术前停药建议" (Pre-operative Drug Discontinuation) analysis feature
+  - Enhanced error handling with bulletproof crash prevention for API data processing
+  - Drug database includes anesthetic induction agents, opioids, muscle relaxants, vasopressors, anticoagulants, etc.
 - June 30, 2025: Comprehensive solution for stuck assessment prevention
   - Created AssessmentManager with timeout protection and automatic recovery
   - Added user-accessible reset button in dashboard header for stuck evaluations

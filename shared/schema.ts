@@ -41,6 +41,18 @@ export const agentLogs = pgTable("agent_logs", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const drugs = pgTable("drugs", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  aliases: json("aliases").$type<string[]>().default([]).notNull(),
+  category: text("category").notNull(), // '麻醉药物', '心血管药物', '抗凝药物' 等
+  stopGuideline: text("stop_guideline"), // 术前停药指南
+  contraindications: json("contraindications").$type<string[]>().default([]),
+  sideEffects: json("side_effects").$type<string[]>().default([]),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Zod schemas for validation
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
@@ -58,6 +70,12 @@ export const insertAgentLogSchema = createInsertSchema(agentLogs).omit({
   createdAt: true,
 });
 
+export const insertDrugSchema = createInsertSchema(drugs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 // TypeScript types
 export type Patient = typeof patients.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
@@ -67,6 +85,9 @@ export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 
 export type AgentLog = typeof agentLogs.$inferSelect;
 export type InsertAgentLog = z.infer<typeof insertAgentLogSchema>;
+
+export type Drug = typeof drugs.$inferSelect;
+export type InsertDrug = z.infer<typeof insertDrugSchema>;
 
 // Additional types for complex data structures
 export interface RiskFactor {

@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Loader2, X, Search, AlertTriangle, AlertCircle, Info, Check, ChevronsUpDown } from 'lucide-react';
+import { Loader2, X, Search, AlertTriangle, AlertCircle, Info, Check, ChevronsUpDown, Clock } from 'lucide-react';
 
 interface DrugInteraction {
   id: string;
@@ -20,27 +20,13 @@ interface DrugInteractionResponse {
   interactions: DrugInteraction[];
 }
 
-const commonDrugs = [
-  // 抗凝抗血小板药物
-  '阿司匹林', '氯吡格雷', '华法林', '利伐沙班', '达比加群',
-  // 心血管药物
-  '美托洛尔', '阿托伐他汀', '氨氯地平', '硝苯地平', '厄贝沙坦',
-  // 消化系统药物
-  '奥美拉唑', '兰索拉唑', '二甲双胍', '格列齐特', '胰岛素',
-  // 麻醉诱导药物
-  '丙泊酚', '依托咪酯', '咪达唑仑', '右美托咪定',
-  // 阿片类镇痛药
-  '芬太尼', '瑞芬太尼', '舒芬太尼', '地佐辛', '氯吗啡酮',
-  // 肌肉松弛药
-  '琥珀酰胆碱', '阿曲库铵', '维库溴铵', '罗库溴铵',
-  // 拮抗药物
-  '新斯的明', '阿托品',
-  // 血管活性药物
-  '麻黄碱', '去甲肾上腺素', '去氧肾上腺素',
-  // 其他常用药物
-  '地塞米松', '甲强龙', '呋塞米', '多巴胺', '肾上腺素',
-  '硫酸镁', '氯化钾', '碳酸氢钠', '氯化钙', '胺碘酮'
-];
+interface Drug {
+  id: number;
+  name: string;
+  aliases: string[];
+  category: string;
+  stopGuideline: string | null;
+}
 
 const getSeverityIcon = (severity: string) => {
   switch (severity) {
@@ -69,8 +55,9 @@ const getSeverityBadge = (severity: string) => {
 };
 
 export default function DrugInteractions() {
-  const [selectedDrugs, setSelectedDrugs] = useState<string[]>([]);
+  const [selectedDrugs, setSelectedDrugs] = useState<Drug[]>([]);
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const drugInteractionMutation = useMutation({
     mutationFn: async (drugs: string[]) => {
@@ -90,8 +77,23 @@ export default function DrugInteractions() {
     },
   });
 
-  const addDrug = (drug: string) => {
-    if (!selectedDrugs.includes(drug)) {
+  // 动态搜索药物
+  const { data: drugSearchResults = [] } = useQuery({
+    queryKey: ['/api/drugs/search', searchQuery],
+    queryFn: async (): Promise<Drug[]> => {
+      if (!searchQuery.trim()) return [];
+      
+      const response = await fetch(`/api/drugs/search?q=${encodeURIComponent(searchQuery)}`);
+      if (!response.ok) return [];
+      
+      const data = await response.json();
+      return data.drugs || [];
+    },
+    enabled: !!searchQuery.trim(),
+  });
+
+  const addDrug = (drug: Drug) => {
+    if (!selectedDrugs.find(d => d.id === drug.id)) {
       setSelectedDrugs(prev => {
         const updated = [...prev, drug];
         console.log('Selected drugs updated:', updated);
@@ -99,11 +101,12 @@ export default function DrugInteractions() {
       });
     }
     setOpen(false);
+    setSearchQuery('');
   };
 
-  const removeDrug = (drugToRemove: string) => {
+  const removeDrug = (drugToRemove: Drug) => {
     setSelectedDrugs(prev => {
-      const updated = prev.filter(drug => drug !== drugToRemove);
+      const updated = prev.filter(drug => drug.id !== drugToRemove.id);
       console.log('Drug removed, updated list:', updated);
       return updated;
     });
@@ -111,26 +114,31 @@ export default function DrugInteractions() {
 
   const handleSearch = () => {
     if (selectedDrugs.length >= 2) {
-      drugInteractionMutation.mutate(selectedDrugs);
+      const drugNames = selectedDrugs.map(drug => drug.name);
+      drugInteractionMutation.mutate(drugNames);
     }
   };
 
-  // 安全检查：确保 interactions 是一个数组
-  const interactions = Array.isArray(drugInteractionMutation.data?.interactions)
-    ? drugInteractionMutation.data.interactions
-    : [];
+  // 防崩溃处理数据
+  const responseData = drugInteractionMutation.data || {};
+  const interactions = Array.isArray(responseData.interactions) ? responseData.interactions : [];
 
-  const groupedInteractions = interactions.reduce((acc, interaction) => {
-    const severity = interaction.severity;
+  const groupedInteractions = interactions.reduce((acc: Record<string, DrugInteraction[]>, interaction: DrugInteraction) => {
+    const severity = interaction.severity || 'minor';
     if (!acc[severity]) {
       acc[severity] = [];
     }
     acc[severity].push(interaction);
     return acc;
-  }, {} as Record<string, DrugInteraction[]>);
+  }, {});
 
-  // 可选择的药物（排除已选择的）
-  const availableDrugs = commonDrugs.filter(drug => !selectedDrugs.includes(drug));
+  // 过滤出需要停药的药物
+  const drugsRequiringStop = selectedDrugs.filter(drug => 
+    drug.stopGuideline && 
+    drug.stopGuideline !== '术前无需停药' && 
+    drug.stopGuideline !== '术前不建议停药' &&
+    drug.stopGuideline !== '术前可继续使用'
+  );
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
@@ -139,7 +147,7 @@ export default function DrugInteractions() {
           药物相互作用查询
         </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          选择两种或更多药物，分析它们之间的潜在相互作用
+          选择两种或更多药物，分析它们之间的潜在相互作用和术前停药建议
         </p>
       </div>
 
@@ -161,30 +169,39 @@ export default function DrugInteractions() {
                   aria-expanded={open}
                   className="w-full justify-between"
                 >
-                  选择药物...
+                  {searchQuery || "搜索并选择药物..."}
                   <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-full p-0">
                 <Command>
-                  <CommandInput placeholder="搜索药物..." />
+                  <CommandInput 
+                    placeholder="搜索药物..." 
+                    value={searchQuery}
+                    onValueChange={setSearchQuery}
+                  />
                   <CommandEmpty>未找到药物</CommandEmpty>
-                  <CommandGroup className="max-h-64 overflow-auto">
-                    {availableDrugs.map((drug) => (
-                      <CommandItem
-                        key={drug}
-                        value={drug}
-                        onSelect={() => addDrug(drug)}
-                      >
-                        <Check
-                          className={`mr-2 h-4 w-4 ${
-                            selectedDrugs.includes(drug) ? "opacity-100" : "opacity-0"
-                          }`}
-                        />
-                        {drug}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
+                  <CommandList>
+                    <CommandGroup className="max-h-64 overflow-auto">
+                      {drugSearchResults.map((drug: Drug) => (
+                        <CommandItem
+                          key={drug.id}
+                          value={drug.name}
+                          onSelect={() => addDrug(drug)}
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${
+                              selectedDrugs.find(d => d.id === drug.id) ? "opacity-100" : "opacity-0"
+                            }`}
+                          />
+                          <div className="flex flex-col">
+                            <span>{drug.name}</span>
+                            <span className="text-xs text-gray-500">{drug.category}</span>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </CommandList>
                 </Command>
               </PopoverContent>
             </Popover>
@@ -198,8 +215,8 @@ export default function DrugInteractions() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {selectedDrugs.map((drug) => (
-                  <Badge key={drug} variant="default" className="flex items-center gap-1 px-3 py-1">
-                    {drug}
+                  <Badge key={drug.id} variant="default" className="flex items-center gap-1 px-3 py-1">
+                    {drug.name}
                     <X
                       className="h-3 w-3 ml-1 cursor-pointer hover:text-red-500"
                       onClick={() => removeDrug(drug)}
@@ -230,6 +247,39 @@ export default function DrugInteractions() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* 术前停药建议卡片 */}
+      {drugsRequiringStop.length > 0 && (
+        <Card className="mb-6 border-orange-200 bg-orange-50 dark:bg-orange-950 dark:border-orange-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800 dark:text-orange-200">
+              <Clock className="h-5 w-5" />
+              术前停药建议
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {drugsRequiringStop.map((drug) => (
+                <div key={drug.id} className="flex justify-between items-start p-3 bg-white dark:bg-gray-800 rounded-lg">
+                  <div>
+                    <span className="font-medium text-gray-900 dark:text-gray-100">{drug.name}</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400 ml-2">({drug.category})</span>
+                  </div>
+                  <div className="text-sm text-orange-700 dark:text-orange-300 text-right">
+                    {drug.stopGuideline}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <Alert className="mt-4 border-orange-300 bg-orange-100 dark:bg-orange-900">
+              <AlertTriangle className="h-4 w-4 text-orange-600" />
+              <AlertDescription className="text-orange-800 dark:text-orange-200">
+                请根据具体手术类型和患者情况，与主管医师确认最终停药时间。
+              </AlertDescription>
+            </Alert>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 查询结果 */}
       {drugInteractionMutation.data && (
@@ -262,7 +312,7 @@ export default function DrugInteractions() {
                     </h3>
                     
                     <div className="grid gap-3">
-                      {interactions.map((interaction) => (
+                      {interactions.map((interaction: DrugInteraction) => (
                         <Card key={interaction.id} className="p-4">
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -281,7 +331,7 @@ export default function DrugInteractions() {
                             <div className="space-y-1">
                               <p className="text-xs font-medium text-gray-700 dark:text-gray-300">建议措施:</p>
                               <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                {interaction.recommendations.map((recommendation, index) => (
+                                {interaction.recommendations.map((recommendation: string, index: number) => (
                                   <li key={index} className="flex items-start gap-1">
                                     <span className="text-blue-500">•</span>
                                     {recommendation}

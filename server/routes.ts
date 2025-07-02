@@ -287,6 +287,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Drug search endpoint
+  app.get("/api/drugs/search", async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Query parameter 'q' is required" });
+      }
+
+      const { DrugService } = await import('./services/drug-service');
+      const drugs = await DrugService.searchDrugs(query);
+
+      res.json({ drugs });
+    } catch (error) {
+      console.error('Drug search error:', error);
+      res.status(500).json({ message: "药物搜索服务暂时不可用" });
+    }
+  });
+
+  // Initialize drug database endpoint
+  app.post("/api/drugs/init", async (req, res) => {
+    try {
+      const { DrugService } = await import('./services/drug-service');
+      await DrugService.initializeDrugDatabase();
+      res.json({ message: "药物数据库初始化成功" });
+    } catch (error) {
+      console.error('Drug database init error:', error);
+      res.status(500).json({ message: "药物数据库初始化失败" });
+    }
+  });
+
   // Clinical Guidelines search endpoint
   app.get("/api/guidelines/search", async (req, res) => {
     try {
