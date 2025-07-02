@@ -81,13 +81,29 @@ export default function DrugInteractions() {
   const { data: drugSearchResults = [] } = useQuery({
     queryKey: ['/api/drugs/search', searchQuery],
     queryFn: async (): Promise<Drug[]> => {
-      if (!searchQuery.trim()) return [];
+      if (!searchQuery.trim()) {
+        console.log('🔍 前端: 搜索查询为空，跳过API调用');
+        return [];
+      }
       
-      const response = await fetch(`/api/drugs/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) return [];
+      const url = `/api/drugs/search?q=${encodeURIComponent(searchQuery)}`;
+      console.log(`🔍 前端: 调用药物搜索API: ${url}`);
+      
+      const response = await fetch(url);
+      console.log(`📡 前端: API响应状态: ${response.status}`);
+      
+      if (!response.ok) {
+        console.error(`❌ 前端: API请求失败，状态码: ${response.status}`);
+        return [];
+      }
       
       const data = await response.json();
-      return data.drugs || [];
+      console.log('📊 前端: 收到API响应数据:', data);
+      
+      const drugs = data.drugs || [];
+      console.log(`✅ 前端: 解析出 ${drugs.length} 个药物`);
+      
+      return drugs;
     },
     enabled: !!searchQuery.trim(),
   });

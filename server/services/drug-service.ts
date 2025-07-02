@@ -1,20 +1,42 @@
 import { db } from '../db';
 import { drugs, type Drug } from '@shared/schema';
-import { ilike } from 'drizzle-orm';
+import { ilike, or, sql } from 'drizzle-orm';
 
 export class DrugService {
   // 搜索药物
   static async searchDrugs(query: string): Promise<Drug[]> {
+    console.log(`🔍 DrugService.searchDrugs called with query: "${query}"`);
+    
+    if (!query || query.trim().length === 0) {
+      console.log('❌ Empty query, returning empty array');
+      return [];
+    }
+    
     try {
-      const searchTerm = `%${query}%`;
+      const searchTerm = `%${query.trim()}%`;
+      console.log(`🔍 Searching for pattern: "${searchTerm}"`);
       
-      return await db
+      const results = await db
         .select()
         .from(drugs)
-        .where(ilike(drugs.name, searchTerm))
+        .where(
+          or(
+            ilike(drugs.name, searchTerm),
+            sql`${drugs.aliases}::text ILIKE ${searchTerm}`
+          )
+        )
         .limit(20);
+      
+      console.log(`✅ Query successful! Found ${results.length} drugs`);
+      if (results.length > 0) {
+        console.log('📋 Sample results:', results.slice(0, 3).map(d => `${d.name} (${d.category})`));
+      } else {
+        console.log('⚠️ No drugs found matching the search term');
+      }
+      
+      return results;
     } catch (error) {
-      console.error('Error searching drugs:', error);
+      console.error('❌ Drug search error:', error);
       return [];
     }
   }
