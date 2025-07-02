@@ -18,22 +18,51 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Extract patient ID from URL parameters
+  // Extract patient ID from URL parameters using window.location.search directly
   useEffect(() => {
-    console.log(`Dashboard: Current location: "${location}"`);
-    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const urlParams = new URLSearchParams(window.location.search);
     const patientParam = urlParams.get('patient');
+    console.log(`Dashboard: Current URL: "${window.location.href}"`);
+    console.log(`Dashboard: Search params: "${window.location.search}"`);
     console.log(`Dashboard: Patient parameter from URL: "${patientParam}"`);
     
     if (patientParam) {
-      const patientId = parseInt(patientParam);
-      console.log(`Dashboard: Setting patient ID from URL: ${patientId}`);
-      setCurrentPatientId(patientId);
+      const patientId = parseInt(patientParam, 10);
+      if (!isNaN(patientId)) {
+        console.log(`Dashboard: Setting patient ID from URL: ${patientId}`);
+        setCurrentPatientId(patientId);
+      } else {
+        console.log('Dashboard: Invalid patient ID in URL');
+        setCurrentPatientId(null);
+      }
     } else {
       console.log('Dashboard: No patient parameter in URL, showing no-patient state');
-      setCurrentPatientId(null); // No default, wait for user action
+      setCurrentPatientId(null);
     }
-  }, [location]);
+  }, [location]); // This will trigger when wouter location changes
+
+  // Also listen to popstate events for direct URL changes
+  useEffect(() => {
+    const handlePopState = () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const patientParam = urlParams.get('patient');
+      console.log(`Dashboard: PopState - Patient parameter: "${patientParam}"`);
+      
+      if (patientParam) {
+        const patientId = parseInt(patientParam, 10);
+        if (!isNaN(patientId)) {
+          setCurrentPatientId(patientId);
+        } else {
+          setCurrentPatientId(null);
+        }
+      } else {
+        setCurrentPatientId(null);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // PDF export function
   const handleExportPDF = (patient: Patient, assessment: Assessment) => {
@@ -48,75 +77,85 @@ export default function Dashboard() {
           <head>
             <title>围术期风险评估报告 - ${patient.name}</title>
             <style>
-              body { font-family: 'Microsoft YaHei', Arial, sans-serif; margin: 20px; line-height: 1.6; }
-              .header { text-align: center; border-bottom: 2px solid #3b82f6; padding-bottom: 20px; margin-bottom: 30px; }
-              .patient-info { background: #f8fafc; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+              body { 
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+                margin: 40px;
+                line-height: 1.6;
+                color: #333;
+              }
+              .header { text-align: center; margin-bottom: 30px; }
+              .section { margin-bottom: 25px; }
+              .section h3 { color: #2563eb; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; }
               .risk-high { color: #dc2626; font-weight: bold; }
               .risk-medium { color: #d97706; font-weight: bold; }
               .risk-low { color: #059669; font-weight: bold; }
-              .section { margin-bottom: 25px; }
-              .section-title { color: #1f2937; font-size: 18px; font-weight: bold; margin-bottom: 10px; border-left: 4px solid #3b82f6; padding-left: 10px; }
-              .risk-item { background: #fef3c7; padding: 10px; margin: 5px 0; border-radius: 4px; }
-              .drug-warning { background: #fee2e2; padding: 10px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #dc2626; }
-              .recommendation { padding: 8px; margin: 3px 0; background: #f0f9ff; border-radius: 4px; }
-              .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 20px; }
-              @media print { body { margin: 0; } }
+              .recommendation { background: #f8fafc; padding: 12px; margin: 8px 0; border-left: 4px solid #3b82f6; }
+              ul { padding-left: 20px; }
+              @media print {
+                body { margin: 20px; }
+                .no-print { display: none; }
+              }
             </style>
           </head>
           <body>
             ${reportContent}
+            <script>
+              window.onload = function() {
+                window.print();
+                setTimeout(function() { window.close(); }, 1000);
+              }
+            </script>
           </body>
         </html>
       `);
       printWindow.document.close();
-      
-      // Wait for content to load then print
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          printWindow.close();
-        }, 500);
-      };
+    } else {
+      toast({
+        title: "导出失败",
+        description: "无法打开新窗口，请检查浏览器设置",
+        variant: "destructive",
+      });
     }
-    
-    toast({
-      title: "导出成功",
-      description: "PDF报告已生成，请查看打印预览"
-    });
   };
 
   // Share report function
   const handleShareReport = async (patient: Patient, assessment: Assessment) => {
-    const reportText = `围术期风险评估报告\n患者：${patient.name}\n整体风险：${assessment.overallRisk === 'high' ? '高风险' : assessment.overallRisk === 'medium' ? '中风险' : '低风险'}\n风险因素：${assessment.riskFactors?.length || 0}项\n药物警示：${assessment.drugInteractions?.length || 0}项`;
-
+    const reportContent = generateReportHTML(patient, assessment);
+    
     if (navigator.share) {
       try {
         await navigator.share({
           title: `围术期风险评估报告 - ${patient.name}`,
-          text: reportText,
+          text: `患者 ${patient.name} 的围术期风险评估报告`,
           url: window.location.href
         });
+        
         toast({
           title: "分享成功",
-          description: "报告已通过系统分享功能发送"
+          description: "报告已成功分享",
         });
       } catch (error) {
-        // User cancelled sharing
-        console.log('Share cancelled');
+        console.error('分享失败:', error);
+        // Fallback to copying URL
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: "链接已复制",
+          description: "报告链接已复制到剪贴板",
+        });
       }
     } else {
       // Fallback: copy to clipboard
       try {
-        await navigator.clipboard.writeText(reportText);
+        await navigator.clipboard.writeText(window.location.href);
         toast({
-          title: "已复制到剪贴板",
-          description: "报告摘要已复制，可手动分享"
+          title: "链接已复制",
+          description: "报告链接已复制到剪贴板",
         });
       } catch (error) {
         toast({
           title: "分享失败",
-          description: "请手动复制报告内容进行分享",
-          variant: "destructive"
+          description: "无法复制链接到剪贴板",
+          variant: "destructive",
         });
       }
     }
@@ -124,149 +163,197 @@ export default function Dashboard() {
 
   // Generate HTML report content
   const generateReportHTML = (patient: Patient, assessment: Assessment) => {
-    const riskLevelText = assessment.overallRisk === 'high' ? '高风险' : assessment.overallRisk === 'medium' ? '中风险' : '低风险';
-    const riskClass = assessment.overallRisk === 'high' ? 'risk-high' : assessment.overallRisk === 'medium' ? 'risk-medium' : 'risk-low';
+    const riskFactors = assessment.riskFactors || [];
+    const drugInteractions = assessment.drugInteractions || [];
+    const guidelines = assessment.clinicalGuidelines || [];
+    const recommendations = assessment.recommendations || [];
     
     return `
       <div class="header">
         <h1>围术期风险评估报告</h1>
-        <p>基于多智能体AI协作分析生成</p>
+        <h2>患者：${patient.name}</h2>
         <p>生成时间：${new Date().toLocaleString('zh-CN')}</p>
       </div>
-
-      <div class="patient-info">
-        <h2>患者信息</h2>
+      
+      <div class="section">
+        <h3>患者基本信息</h3>
         <p><strong>姓名：</strong>${patient.name}</p>
         <p><strong>年龄：</strong>${patient.age}岁</p>
         <p><strong>性别：</strong>${patient.gender}</p>
         <p><strong>手术类型：</strong>${patient.surgeryType}</p>
         <p><strong>ASA分级：</strong>${patient.asaClass}</p>
-        <p><strong>既往史：</strong>${patient.medicalHistory?.join('、') || '无'}</p>
-        <p><strong>用药史：</strong>${patient.medications?.join('、') || '无'}</p>
-        <p><strong>过敏史：</strong>${patient.allergies?.join('、') || '无'}</p>
       </div>
-
+      
       <div class="section">
-        <h2 class="section-title">风险评估结论</h2>
-        <p>整体风险等级：<span class="${riskClass}">${riskLevelText}</span></p>
-        <p>识别风险因素：${assessment.riskFactors?.length || 0}项</p>
-        <p>药物相互作用警示：${assessment.drugInteractions?.length || 0}项</p>
+        <h3>总体风险评估</h3>
+        <p class="risk-${assessment.overallRisk}">
+          <strong>风险等级：${assessment.overallRisk === 'high' ? '高风险' : assessment.overallRisk === 'medium' ? '中等风险' : '低风险'}</strong>
+        </p>
       </div>
-
-      ${assessment.riskFactors && assessment.riskFactors.length > 0 ? `
-        <div class="section">
-          <h2 class="section-title">主要风险因素</h2>
-          ${assessment.riskFactors.map(risk => `
-            <div class="risk-item">
-              <strong>${risk.type === 'cardiovascular' ? '心血管' : risk.type === 'airway' ? '气道' : risk.type === 'thrombosis' ? '血栓' : risk.type === 'ponv' ? 'PONV' : '其他'}风险</strong> - ${risk.level === 'high' ? '高' : risk.level === 'medium' ? '中' : '低'}等级
-              <br>${risk.description}
-            </div>
+      
+      ${riskFactors.length > 0 ? `
+      <div class="section">
+        <h3>风险因素分析</h3>
+        <ul>
+          ${riskFactors.map(factor => `
+            <li class="risk-${factor.level}">
+              <strong>${factor.type === 'airway' ? '气道' : factor.type === 'cardiovascular' ? '心血管' : factor.type === 'thrombosis' ? '血栓' : factor.type === 'ponv' ? 'PONV' : '其他'}风险：</strong>
+              ${factor.description}
+              ${factor.recommendations.length > 0 ? `
+              <ul>
+                ${factor.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+              </ul>
+              ` : ''}
+            </li>
           `).join('')}
-        </div>
-      ` : ''}
-
-      ${assessment.drugInteractions && assessment.drugInteractions.length > 0 ? `
-        <div class="section">
-          <h2 class="section-title">药物相互作用警示</h2>
-          ${assessment.drugInteractions.map(drug => `
-            <div class="drug-warning">
-              <strong>${drug.severity === 'major' ? '重要' : drug.severity === 'moderate' ? '中等' : '轻微'}警示：</strong>${drug.drugs.join('、')}
-              <br>${drug.description}
-            </div>
-          `).join('')}
-        </div>
-      ` : ''}
-
-      ${assessment.recommendations && assessment.recommendations.length > 0 ? `
-        <div class="section">
-          <h2 class="section-title">临床建议</h2>
-          ${assessment.recommendations.map((rec, index) => `
-            <div class="recommendation">${index + 1}. ${rec}</div>
-          `).join('')}
-        </div>
-      ` : ''}
-
-      <div class="footer">
-        <p>本报告由麻醉守护神AI系统生成，仅供临床参考，最终决策应结合临床医生专业判断</p>
-        <p>报告生成时间：${new Date().toLocaleString('zh-CN')}</p>
+        </ul>
       </div>
+      ` : ''}
+      
+      ${drugInteractions.length > 0 ? `
+      <div class="section">
+        <h3>药物相互作用</h3>
+        <ul>
+          ${drugInteractions.map(interaction => `
+            <li class="risk-${interaction.severity === 'major' ? 'high' : interaction.severity === 'moderate' ? 'medium' : 'low'}">
+              <strong>${interaction.drugs.join(' + ')}：</strong>
+              ${interaction.description}
+              ${interaction.recommendations.length > 0 ? `
+              <ul>
+                ${interaction.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+              </ul>
+              ` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      ` : ''}
+      
+      ${guidelines.length > 0 ? `
+      <div class="section">
+        <h3>临床指南</h3>
+        <ul>
+          ${guidelines.map(guideline => `
+            <li>
+              <strong>${guideline.title}</strong> (${guideline.organization}, ${guideline.year})
+              <p>${guideline.summary}</p>
+              ${guideline.recommendations.length > 0 ? `
+              <ul>
+                ${guideline.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+              </ul>
+              ` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      ` : ''}
+      
+      ${recommendations.length > 0 ? `
+      <div class="section">
+        <h3>临床建议</h3>
+        <ul>
+          ${recommendations.map(rec => `<li class="recommendation">${rec}</li>`).join('')}
+        </ul>
+      </div>
+      ` : ''}
     `;
   };
 
-  // Initialize demo data
+  // Fetch patient data
+  const { data: patient, isLoading: patientLoading } = useQuery({
+    queryKey: ['/api/patients', currentPatientId],
+    enabled: currentPatientId !== null,
+  });
+
+  // Fetch assessment data
+  const { data: assessment, isLoading: assessmentLoading } = useQuery({
+    queryKey: ['/api/patients', currentPatientId, 'assessment'],
+    enabled: currentPatientId !== null,
+  });
+
+  // Create demo data mutation
   const createDemoDataMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest('POST', '/api/demo-data');
-      return response.json();
+      const response = await apiRequest('/api/patients', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: '演示患者',
+          age: 65,
+          gender: '男',
+          surgeryType: '腹腔镜胆囊切除术',
+          asaClass: 'II',
+          medicalHistory: ['高血压', '糖尿病'],
+          medications: ['氨氯地平', '二甲双胍'],
+          allergies: ['青霉素'],
+          vitalSigns: {
+            bloodPressure: '140/90',
+            heartRate: 78,
+            temperature: 36.5,
+            respiratoryRate: 16,
+            oxygenSaturation: 98
+          },
+          labResults: {
+            hemoglobin: 12.5,
+            whiteBloodCell: 6.8,
+            platelet: 250,
+            glucose: 7.2,
+            creatinine: 85
+          }
+        }),
+      });
+      return response;
     },
-    onSuccess: (data) => {
-      setCurrentPatientId(data.patient.id);
+    onSuccess: (newPatient: Patient) => {
+      setCurrentPatientId(newPatient.id);
       queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/assessments'] });
-    },
-  });
-
-  // Get patient data
-  const { data: patient, isLoading: patientLoading } = useQuery<Patient>({
-    queryKey: [`/api/patients/${currentPatientId}`],
-    enabled: !!currentPatientId,
-  });
-
-  // Get assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
-    queryKey: [`/api/patients/${currentPatientId}/assessment`],
-    enabled: !!currentPatientId,
-  });
-
-  // Reset assessment mutation
-  const resetAssessmentMutation = useMutation({
-    mutationFn: async (patientId: number) => {
-      const response = await apiRequest('POST', `/api/patients/${patientId}/assessment/reset`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
       toast({
-        title: "评估已重启",
-        description: "AI智能体正在重新分析患者数据"
+        title: "演示数据已创建",
+        description: `患者 ${newPatient.name} 已添加`,
       });
     },
     onError: () => {
       toast({
-        title: "重启评估失败",
-        description: "请稍后重试",
-        variant: "destructive"
-      });
-    }
-  });
-
-  // Start assessment mutation
-  const startAssessmentMutation = useMutation({
-    mutationFn: async (assessmentId: number) => {
-      const response = await apiRequest('POST', `/api/assessments/${assessmentId}/run`);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "评估已启动",
-        description: "AI智能体正在分析患者数据...",
-      });
-      // Start polling for updates
-      const interval = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
-      }, 2000);
-      
-      // Stop polling after 30 seconds
-      setTimeout(() => clearInterval(interval), 30000);
-    },
-    onError: (error) => {
-      toast({
-        title: "启动失败",
-        description: error.message,
+        title: "创建失败",
+        description: "无法创建演示数据",
         variant: "destructive",
       });
     },
   });
+
+  // Handle creating demo data
+  const handleCreateDemoData = () => {
+    createDemoDataMutation.mutate();
+  };
+
+  // Reset assessment mutation
+  const resetAssessmentMutation = useMutation({
+    mutationFn: async (patientId: number) => {
+      const response = await apiRequest(`/api/patients/${patientId}/reset-assessment`, {
+        method: 'POST',
+      });
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/patients', currentPatientId, 'assessment'] });
+      toast({
+        title: "评估已重置",
+        description: "可以重新开始评估",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "重置失败",
+        description: "无法重置评估",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleResetAssessment = () => {
+    if (currentPatientId) {
+      resetAssessmentMutation.mutate(currentPatientId);
+    }
+  };
 
   // Only create demo data if no patients exist at all
   useEffect(() => {
@@ -278,24 +365,16 @@ export default function Dashboard() {
 
   // Auto-refresh assessment data
   useEffect(() => {
-    if (assessment && assessment.status === 'in_progress') {
+    if (currentPatientId && assessment?.status === 'in_progress') {
       const interval = setInterval(() => {
-        queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
-      }, 3000);
-      
+        queryClient.invalidateQueries({ 
+          queryKey: ['/api/patients', currentPatientId, 'assessment'] 
+        });
+      }, 2000);
+
       return () => clearInterval(interval);
     }
-  }, [assessment, currentPatientId, queryClient]);
-
-  const handleStartAssessment = () => {
-    if (assessment) {
-      startAssessmentMutation.mutate(assessment.id);
-    }
-  };
-
-  const handleCreateDemoData = () => {
-    createDemoDataMutation.mutate();
-  };
+  }, [currentPatientId, assessment?.status, queryClient]);
 
   if (patientLoading || assessmentLoading) {
     return (
@@ -331,152 +410,120 @@ export default function Dashboard() {
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="flex items-center justify-between px-6 py-4">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">围术期智能决策支持</h2>
-            <p className="text-sm text-gray-500">
-              当前患者: <span className="font-medium">{patient.name}</span> | 
-              手术类型: <span className="font-medium">{patient.surgeryType}</span>
-            </p>
-          </div>
-          <div className="flex items-center space-x-3">
-            {assessment?.status === 'in_progress' && (
-              <Button
-                variant="outline"
-                onClick={() => currentPatientId && resetAssessmentMutation.mutate(currentPatientId)}
-                disabled={resetAssessmentMutation.isPending}
-                className="bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
-              >
-                <i className="fas fa-redo mr-2"></i>
-                {resetAssessmentMutation.isPending ? '重启中...' : '重启评估'}
-              </Button>
-            )}
-            {assessment?.status === 'failed' && (
-              <Button
-                onClick={() => currentPatientId && resetAssessmentMutation.mutate(currentPatientId)}
-                disabled={resetAssessmentMutation.isPending}
-                className="bg-red-50 border-red-300 text-red-700 hover:bg-red-100"
-              >
-                <i className="fas fa-exclamation-triangle mr-2"></i>
-                {resetAssessmentMutation.isPending ? '重试中...' : '重试评估'}
-              </Button>
-            )}
+            <h1 className="text-2xl font-bold text-gray-900">麻醉守护神</h1>
+            <p className="text-sm text-gray-600">智能围术期决策支持系统</p>
           </div>
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-              <span className="text-sm text-gray-600">AI系统正常</span>
-            </div>
-            {assessment && (
-              <Button 
-                onClick={handleStartAssessment}
-                disabled={startAssessmentMutation.isPending || assessment.status === 'in_progress'}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                <i className="fas fa-play mr-2"></i>
-                {assessment.status === 'in_progress' ? '评估进行中...' : '开始评估'}
-              </Button>
+            {assessment && assessment.status === 'completed' && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => handleExportPDF(patient, assessment)}
+                  className="text-sm"
+                >
+                  <i className="fas fa-download mr-2"></i>
+                  导出PDF
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => handleShareReport(patient, assessment)}
+                  className="text-sm"
+                >
+                  <i className="fas fa-share mr-2"></i>
+                  分享报告
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleResetAssessment}
+                  disabled={resetAssessmentMutation.isPending}
+                  className="text-sm"
+                >
+                  <i className="fas fa-redo mr-2"></i>
+                  {resetAssessmentMutation.isPending ? '重置中...' : '重新评估'}
+                </Button>
+              </>
             )}
+            <div className="text-sm text-gray-500">
+              患者ID: {currentPatientId}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="p-6">
+      {/* Main Content */}
+      <div className="p-6 space-y-6">
         {/* Patient Overview */}
         <PatientOverview patient={patient} />
 
-        {/* Agent Status */}
         {assessment && (
-          <AgentStatusCard agentStatus={assessment.agentStatus || {}} />
-        )}
+          <>
+            {/* Agent Status */}
+            {assessment.agentStatus && Object.keys(assessment.agentStatus).length > 0 && (
+              <AgentStatusCard agentStatus={assessment.agentStatus} />
+            )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Risk Assessment */}
-          <RiskAssessment riskFactors={assessment?.riskFactors || []} />
+            {/* Risk Assessment */}
+            {assessment.riskFactors && assessment.riskFactors.length > 0 && (
+              <RiskAssessment riskFactors={assessment.riskFactors} />
+            )}
 
-          {/* Drug Interactions */}
-          <DrugInteractions interactions={assessment?.drugInteractions || []} />
-        </div>
+            {/* Drug Interactions */}
+            {assessment.drugInteractions && assessment.drugInteractions.length > 0 && (
+              <DrugInteractions interactions={assessment.drugInteractions} />
+            )}
 
-        {/* Clinical Guidelines */}
-        <ClinicalGuidelines guidelines={assessment?.clinicalGuidelines || []} />
+            {/* Clinical Guidelines */}
+            {assessment.clinicalGuidelines && assessment.clinicalGuidelines.length > 0 && (
+              <ClinicalGuidelines guidelines={assessment.clinicalGuidelines} />
+            )}
 
-        {/* Generated Report */}
-        {assessment && assessment.status === 'completed' && (
-          <Card className="mt-6">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold text-gray-900">围术期风险评估报告</h3>
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="outline"
-                    onClick={() => patient && assessment && handleExportPDF(patient, assessment)}
-                  >
-                    <i className="fas fa-download mr-2"></i>导出PDF
-                  </Button>
-                  <Button 
-                    className="bg-blue-600 hover:bg-blue-700"
-                    onClick={() => patient && assessment && handleShareReport(patient, assessment)}
-                  >
-                    <i className="fas fa-share mr-2"></i>分享报告
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6 mb-6">
-                <div className="flex items-center space-x-3 mb-4">
-                  <i className="fas fa-clipboard-check text-2xl text-blue-600"></i>
-                  <div>
-                    <h4 className="text-lg font-semibold text-gray-900">综合评估结论</h4>
-                    <p className="text-sm text-gray-600">基于多智能体协作分析生成</p>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <div className="text-center">
-                    <div className={`text-2xl font-bold mb-1 ${
-                      assessment.overallRisk === 'high' ? 'text-red-600' :
-                      assessment.overallRisk === 'medium' ? 'text-yellow-600' : 'text-green-600'
-                    }`}>
-                      {assessment.overallRisk === 'high' ? '高' :
-                       assessment.overallRisk === 'medium' ? '中' : '低'}
-                    </div>
-                    <div className="text-sm text-gray-600">整体风险等级</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600 mb-1">
-                      {assessment.riskFactors?.length || 0}
-                    </div>
-                    <div className="text-sm text-gray-600">重要关注点</div>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-yellow-600 mb-1">
-                      {assessment.drugInteractions?.length || 0}
-                    </div>
-                    <div className="text-sm text-gray-600">药物警示</div>
-                  </div>
-                </div>
-              </div>
-
-              {assessment.recommendations && assessment.recommendations.length > 0 && (
-                <div className="prose max-w-none">
-                  <h4 className="text-base font-semibold text-gray-900 mb-3">关键建议</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <ol className="list-decimal list-inside space-y-2 text-sm text-gray-700">
-                      {assessment.recommendations.slice(0, 4).map((rec, index) => (
-                        <li key={index}>{rec}</li>
-                      ))}
-                    </ol>
-                  </div>
-
-                  <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                    <div className="flex">
-                      <i className="fas fa-lightbulb text-blue-400 mt-1 mr-3"></i>
-                      <div className="text-sm text-blue-700">
-                        <p><strong>AI建议：</strong>该患者需要经验丰富的麻醉医生主导，术中密切监测，必要时请相关专科会诊。</p>
+            {/* Overall Assessment Summary */}
+            {assessment.status === 'completed' && (
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-gray-900">评估总结</h3>
+                      <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        assessment.overallRisk === 'high' 
+                          ? 'bg-red-100 text-red-800' 
+                          : assessment.overallRisk === 'medium'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-green-100 text-green-800'
+                      }`}>
+                        {assessment.overallRisk === 'high' ? '高风险' : 
+                         assessment.overallRisk === 'medium' ? '中等风险' : '低风险'}
                       </div>
                     </div>
+                    
+                    {assessment.recommendations && assessment.recommendations.length > 0 && (
+                      <div>
+                        <h4 className="font-medium text-gray-900 mb-2">临床建议：</h4>
+                        <ul className="space-y-1">
+                          {assessment.recommendations.map((recommendation, index) => (
+                            <li key={index} className="flex items-start">
+                              <span className="text-blue-500 mr-2">•</span>
+                              <span className="text-gray-700">{recommendation}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                </CardContent>
+              </Card>
+            )}
+          </>
+        )}
+        
+        {!assessment && (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <div className="text-gray-600">
+                <i className="fas fa-chart-line text-4xl mb-4"></i>
+                <p>该患者尚未进行风险评估</p>
+                <p className="text-sm mt-2">请前往患者管理页面开始评估</p>
+              </div>
             </CardContent>
           </Card>
         )}
