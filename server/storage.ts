@@ -92,11 +92,16 @@ export class MemStorage implements IStorage {
   }
 
   async updateAssessment(id: number, update: Partial<InsertAssessment>): Promise<Assessment | undefined> {
+    console.log(`Storage: Updating assessment ${id} with:`, JSON.stringify(update, null, 2));
     const assessment = this.assessments.get(id);
-    if (!assessment) return undefined;
+    if (!assessment) {
+      console.log(`Storage: Assessment ${id} not found`);
+      return undefined;
+    }
     
     const updatedAssessment = { ...assessment, ...update };
     this.assessments.set(id, updatedAssessment);
+    console.log(`Storage: Assessment ${id} updated successfully. New status: ${updatedAssessment.status}`);
     return updatedAssessment;
   }
 

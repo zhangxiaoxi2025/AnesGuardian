@@ -111,6 +111,7 @@ export class SimpleAgentOrchestrator {
       const recommendations = this.generateRecommendations(riskFactors, drugInteractions, guidelines);
 
       // Update assessment with final results
+      console.log(`Updating assessment ${this.assessmentId} to completed status`);
       const finalAssessment = await storage.updateAssessment(this.assessmentId, {
         status: 'completed',
         overallRisk,
@@ -120,6 +121,8 @@ export class SimpleAgentOrchestrator {
         recommendations
       });
 
+      console.log(`Assessment ${this.assessmentId} update result:`, finalAssessment ? 'SUCCESS' : 'FAILED');
+      
       await this.updateAgentStatus('orchestrator', 'completed', 100, '评估完成');
 
       console.log('Simple assessment completed successfully');

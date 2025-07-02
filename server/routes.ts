@@ -93,35 +93,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const patientId = parseInt(req.params.patientId);
       
-      // Check if patient exists
-      const patient = await storage.getPatient(patientId);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-
-      // Get or create assessment
-      let assessment = await storage.getAssessmentByPatientId(patientId);
-      if (!assessment) {
-        assessment = await storage.createAssessment({
-          patientId,
-          status: "in_progress",
-          overallRisk: null,
-          riskFactors: [],
-          drugInteractions: [],
-          clinicalGuidelines: [],
-          recommendations: [],
-          agentStatus: {}
-        });
-      }
-
-      // Use AssessmentManager for consistent, robust handling
-      const { AssessmentManager } = await import('./services/assessment-manager');
-      const manager = AssessmentManager.getInstance();
+      // Use the new reliable assessment service
+      const { ReliableAssessmentService } = await import('./services/reliable-assessment');
+      const service = ReliableAssessmentService.getInstance();
       
-      // Start assessment with timeout protection and error handling
-      await manager.startAssessment(patientId, assessment.id);
-
-      res.json({ message: "Assessment started", assessmentId: assessment.id });
+      const result = await service.startAssessment(patientId);
+      
+      if (result.success) {
+        res.json({ 
+          message: result.message, 
+          assessmentId: result.assessmentId 
+        });
+      } else {
+        res.status(400).json({ message: result.message });
+      }
     } catch (error) {
       res.status(500).json({ message: (error as Error).message });
     }
