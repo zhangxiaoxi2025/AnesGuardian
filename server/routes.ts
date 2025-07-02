@@ -267,6 +267,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Drug Interactions endpoint
+  app.post("/api/drug-interactions", async (req, res) => {
+    try {
+      const { drugs } = req.body;
+      
+      if (!drugs || !Array.isArray(drugs) || drugs.length < 2) {
+        return res.status(400).json({ message: "至少需要2种药物进行交互分析" });
+      }
+
+      const { analyzeDrugInteractions } = await import('./services/gemini');
+      const interactions = await analyzeDrugInteractions(drugs);
+
+      res.json({ interactions });
+    } catch (error) {
+      console.error('Drug interaction analysis error:', error);
+      res.status(500).json({ message: "药物交互分析服务暂时不可用" });
+    }
+  });
+
+  // Clinical Guidelines search endpoint
+  app.get("/api/guidelines/search", async (req, res) => {
+    try {
+      const { q: query } = req.query;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "搜索查询参数是必需的" });
+      }
+
+      const { searchClinicalGuidelines } = await import('./services/gemini');
+      const guidelines = await searchClinicalGuidelines(query, []);
+
+      res.json({ 
+        guidelines: guidelines || [],
+        total: guidelines ? guidelines.length : 0
+      });
+    } catch (error) {
+      console.error('Clinical guidelines search error:', error);
+      res.status(500).json({ message: "临床指南搜索服务暂时不可用" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

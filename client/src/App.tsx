@@ -8,6 +8,8 @@ import PatientForm from "@/pages/patient-form";
 import Patients from "@/pages/patients";
 import Agents from "@/pages/agents";
 import Chat from "@/pages/chat";
+import DrugInteractions from "@/pages/drug-interactions";
+import ClinicalGuidelines from "@/pages/clinical-guidelines";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,8 +22,8 @@ function Router() {
       <Route path="/agents" component={Agents} />
       <Route path="/chat" component={Chat} />
       <Route path="/risk" component={Dashboard} />
-      <Route path="/drugs" component={Dashboard} />
-      <Route path="/guidelines" component={Dashboard} />
+      <Route path="/drugs" component={DrugInteractions} />
+      <Route path="/guidelines" component={ClinicalGuidelines} />
       <Route component={NotFound} />
     </Switch>
   );
