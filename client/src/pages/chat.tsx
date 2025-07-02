@@ -87,8 +87,8 @@ export default function Chat() {
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">AI智能问答</h1>
-        <Badge variant="outline" className="text-blue-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">AI智能问答</h1>
+        <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-600">
           <i className="fas fa-robot mr-2"></i>
           麻醉智能AI
         </Badge>
@@ -97,7 +97,7 @@ export default function Chat() {
       <Card className="flex-1 flex flex-col">
         <CardHeader>
           <CardTitle className="text-lg">医学问答助手</CardTitle>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             专业的围术期医学知识问答，为您提供基于循证医学的建议和指导
           </p>
         </CardHeader>
@@ -113,13 +113,17 @@ export default function Chat() {
                   <div
                     className={`max-w-[80%] rounded-lg p-3 ${
                       message.role === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-100 text-gray-900'
+                        ? 'bg-blue-500 dark:bg-blue-600 text-white'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                     }`}
+                    role="article"
+                    aria-label={`${message.role === 'user' ? '用户' : 'AI助手'}消息`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                     <p className={`text-xs mt-1 ${
-                      message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                      message.role === 'user' 
+                        ? 'text-blue-100 dark:text-blue-200' 
+                        : 'text-gray-500 dark:text-gray-400'
                     }`}>
                       {message.timestamp.toLocaleTimeString('zh-CN')}
                     </p>
@@ -129,10 +133,10 @@ export default function Chat() {
               
               {chatMutation.isPending && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-100 rounded-lg p-3">
+                  <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-3">
                     <div className="flex items-center space-x-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
-                      <span className="text-sm text-gray-600">AI正在思考中...</span>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 dark:border-blue-400"></div>
+                      <span className="text-sm text-gray-600 dark:text-gray-300">AI正在思考中...</span>
                     </div>
                   </div>
                 </div>
@@ -159,7 +163,7 @@ export default function Chat() {
             </Button>
           </div>
           
-          <div className="mt-3 text-xs text-gray-500">
+          <div className="mt-3 text-xs text-gray-500 dark:text-gray-400">
             <p>💡 提示：您可以询问关于麻醉、手术风险评估、药物相互作用等医学问题</p>
           </div>
         </CardContent>
