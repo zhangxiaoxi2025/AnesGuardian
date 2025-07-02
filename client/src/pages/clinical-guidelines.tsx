@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Search, BookOpen, Calendar, Building, Star, ExternalLink } from 'lucide-react';
 
@@ -266,25 +266,27 @@ export default function ClinicalGuidelines() {
                 <DialogContent className="max-w-4xl max-h-[80vh]">
                   <DialogHeader>
                     <DialogTitle className="text-xl">{guideline.title}</DialogTitle>
-                    <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
-                      <span>{guideline.organization}</span>
-                      <span>•</span>
-                      <span>{guideline.year}年</span>
-                      {guideline.source && (
-                        <>
-                          <span>•</span>
-                          <a 
-                            href={guideline.source} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400"
-                          >
-                            <ExternalLink className="h-3 w-3" />
-                            原文链接
-                          </a>
-                        </>
-                      )}
-                    </div>
+                    <DialogDescription>
+                      <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                        <span>{guideline.organization}</span>
+                        <span>•</span>
+                        <span>{guideline.year}年</span>
+                        {guideline.source && (
+                          <>
+                            <span>•</span>
+                            <a 
+                              href={guideline.source} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-600 hover:text-blue-800 dark:text-blue-400"
+                            >
+                              <ExternalLink className="h-3 w-3" />
+                              原文链接
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </DialogDescription>
                   </DialogHeader>
                   
                   <ScrollArea className="max-h-[60vh]">

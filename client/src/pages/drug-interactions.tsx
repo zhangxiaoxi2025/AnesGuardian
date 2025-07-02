@@ -95,14 +95,22 @@ export default function DrugInteractions() {
 
   const addDrug = (drug: string) => {
     if (!selectedDrugs.includes(drug)) {
-      setSelectedDrugs([...selectedDrugs, drug]);
+      setSelectedDrugs(prev => {
+        const updated = [...prev, drug];
+        console.log('Selected drugs updated:', updated);
+        return updated;
+      });
     }
     setInputValue('');
     setShowSuggestions(false);
   };
 
   const removeDrug = (drugToRemove: string) => {
-    setSelectedDrugs(selectedDrugs.filter(drug => drug !== drugToRemove));
+    setSelectedDrugs(prev => {
+      const updated = prev.filter(drug => drug !== drugToRemove);
+      console.log('Drug removed, updated list:', updated);
+      return updated;
+    });
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -174,7 +182,12 @@ export default function DrugInteractions() {
 
           {selectedDrugs.length > 0 && (
             <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">已选择的药物:</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                已选择的药物: ({selectedDrugs.length}种)
+                {selectedDrugs.length >= 2 && (
+                  <span className="text-green-600 dark:text-green-400 ml-2">✓ 已满足查询条件</span>
+                )}
+              </p>
               <div className="flex flex-wrap gap-2">
                 {selectedDrugs.map((drug, index) => (
                   <Badge
@@ -199,14 +212,18 @@ export default function DrugInteractions() {
             <Button
               onClick={handleSearch}
               disabled={selectedDrugs.length < 2 || drugInteractionMutation.isPending}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${
+                selectedDrugs.length >= 2 && !drugInteractionMutation.isPending 
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                  : ''
+              }`}
             >
               {drugInteractionMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Search className="h-4 w-4" />
               )}
-              查询交互
+              查询交互 ({selectedDrugs.length}/2+)
             </Button>
             
             {selectedDrugs.length > 0 && (
