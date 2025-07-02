@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
@@ -12,9 +13,21 @@ import { ClinicalGuidelines } from '@/components/clinical-guidelines';
 import type { Patient, Assessment } from '@shared/schema';
 
 export default function Dashboard() {
-  const [currentPatientId, setCurrentPatientId] = useState<number | null>(1);
+  const [location] = useLocation();
+  const [currentPatientId, setCurrentPatientId] = useState<number | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Extract patient ID from URL parameters
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.split('?')[1] || '');
+    const patientParam = urlParams.get('patient');
+    if (patientParam) {
+      setCurrentPatientId(parseInt(patientParam));
+    } else {
+      setCurrentPatientId(1); // Default to patient 1 if no param
+    }
+  }, [location]);
 
   // PDF export function
   const handleExportPDF = (patient: Patient, assessment: Assessment) => {
@@ -188,13 +201,13 @@ export default function Dashboard() {
   });
 
   // Get patient data
-  const { data: patient, isLoading: patientLoading } = useQuery({
+  const { data: patient, isLoading: patientLoading } = useQuery<Patient>({
     queryKey: [`/api/patients/${currentPatientId}`],
     enabled: !!currentPatientId,
   });
 
   // Get assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery({
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
     queryKey: [`/api/patients/${currentPatientId}/assessment`],
     enabled: !!currentPatientId,
   });

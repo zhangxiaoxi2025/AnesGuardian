@@ -87,8 +87,30 @@ export default function Patients() {
     }
   };
 
+  const startAssessmentMutation = useMutation({
+    mutationFn: async (patientId: number) => {
+      const response = await apiRequest('POST', `/api/patients/${patientId}/assess`, {});
+      return response.json();
+    },
+    onSuccess: (data, patientId) => {
+      toast({
+        title: "评估已开始",
+        description: "AI智能体正在分析患者数据",
+      });
+      // 导航到仪表板查看评估进度
+      setLocation(`/?patient=${patientId}`);
+    },
+    onError: () => {
+      toast({
+        title: "启动失败",
+        description: "请稍后重试",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStartAssessment = (patientId: number) => {
-    setLocation(`/?patient=${patientId}`);
+    startAssessmentMutation.mutate(patientId);
   };
 
   if (isLoading) {
@@ -323,8 +345,12 @@ export default function Patients() {
                     </DialogContent>
                   </Dialog>
                   
-                  <Button size="sm" onClick={() => handleStartAssessment(patient.id)}>
-                    开始评估
+                  <Button 
+                    size="sm" 
+                    onClick={() => handleStartAssessment(patient.id)}
+                    disabled={startAssessmentMutation.isPending}
+                  >
+                    {startAssessmentMutation.isPending ? '启动中...' : '开始评估'}
                   </Button>
                 </div>
               </div>
