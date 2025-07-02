@@ -277,9 +277,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { analyzeDrugInteractions } = await import('./services/gemini');
-      const interactions = await analyzeDrugInteractions(drugs);
+      const result = await analyzeDrugInteractions(drugs);
 
-      res.json({ interactions });
+      // 确保返回正确的数据结构
+      res.json(result);
     } catch (error) {
       console.error('Drug interaction analysis error:', error);
       res.status(500).json({ message: "药物交互分析服务暂时不可用" });

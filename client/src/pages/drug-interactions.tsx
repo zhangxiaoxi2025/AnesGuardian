@@ -21,12 +21,25 @@ interface DrugInteractionResponse {
 }
 
 const commonDrugs = [
+  // 抗凝抗血小板药物
   '阿司匹林', '氯吡格雷', '华法林', '利伐沙班', '达比加群',
+  // 心血管药物
   '美托洛尔', '阿托伐他汀', '氨氯地平', '硝苯地平', '厄贝沙坦',
+  // 消化系统药物
   '奥美拉唑', '兰索拉唑', '二甲双胍', '格列齐特', '胰岛素',
-  '丙泊酚', '咪达唑仑', '芬太尼', '瑞芬太尼', '右美托咪定',
-  '舒芬太尼', '依托咪酯', '琥珀酰胆碱', '阿曲库铵', '维库溴铵',
-  '罗库溴铵', '新斯的明', '阿托品', '麻黄碱', '去甲肾上腺素'
+  // 麻醉诱导药物
+  '丙泊酚', '依托咪酯', '咪达唑仑', '右美托咪定',
+  // 阿片类镇痛药
+  '芬太尼', '瑞芬太尼', '舒芬太尼', '地佐辛', '氯吗啡酮',
+  // 肌肉松弛药
+  '琥珀酰胆碱', '阿曲库铵', '维库溴铵', '罗库溴铵',
+  // 拮抗药物
+  '新斯的明', '阿托品',
+  // 血管活性药物
+  '麻黄碱', '去甲肾上腺素', '去氧肾上腺素',
+  // 其他常用药物
+  '地塞米松', '甲强龙', '呋塞米', '多巴胺', '肾上腺素',
+  '硫酸镁', '氯化钾', '碳酸氢钠', '氯化钙', '胺碘酮'
 ];
 
 const getSeverityIcon = (severity: string) => {
@@ -102,14 +115,19 @@ export default function DrugInteractions() {
     }
   };
 
-  const groupedInteractions = drugInteractionMutation.data?.interactions.reduce((acc, interaction) => {
+  // 安全检查：确保 interactions 是一个数组
+  const interactions = Array.isArray(drugInteractionMutation.data?.interactions)
+    ? drugInteractionMutation.data.interactions
+    : [];
+
+  const groupedInteractions = interactions.reduce((acc, interaction) => {
     const severity = interaction.severity;
     if (!acc[severity]) {
       acc[severity] = [];
     }
     acc[severity].push(interaction);
     return acc;
-  }, {} as Record<string, DrugInteraction[]>) || {};
+  }, {} as Record<string, DrugInteraction[]>);
 
   // 可选择的药物（排除已选择的）
   const availableDrugs = commonDrugs.filter(drug => !selectedDrugs.includes(drug));
