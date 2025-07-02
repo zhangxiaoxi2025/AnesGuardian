@@ -20,14 +20,17 @@ export default function Dashboard() {
 
   // Extract patient ID from URL parameters
   useEffect(() => {
+    console.log(`Dashboard: Current location: "${location}"`);
     const urlParams = new URLSearchParams(location.split('?')[1] || '');
     const patientParam = urlParams.get('patient');
+    console.log(`Dashboard: Patient parameter from URL: "${patientParam}"`);
+    
     if (patientParam) {
       const patientId = parseInt(patientParam);
       console.log(`Dashboard: Setting patient ID from URL: ${patientId}`);
       setCurrentPatientId(patientId);
     } else {
-      console.log('Dashboard: No patient parameter in URL');
+      console.log('Dashboard: No patient parameter in URL, showing no-patient state');
       setCurrentPatientId(null); // No default, wait for user action
     }
   }, [location]);
