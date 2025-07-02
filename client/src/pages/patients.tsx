@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +16,8 @@ import { Patient, InsertPatient } from "@/../../shared/schema";
 export default function Patients() {
   const [, setLocation] = useLocation();
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editForm, setEditForm] = useState<Partial<InsertPatient>>({});
   const { toast } = useToast();
@@ -35,6 +37,7 @@ export default function Patients() {
       queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
       setEditingPatient(null);
       setEditForm({});
+      setEditDialogOpen(false);
       toast({
         title: "更新成功",
         description: "患者信息已更新",
@@ -61,6 +64,18 @@ export default function Patients() {
       medications: patient.medications,
       allergies: patient.allergies,
     });
+    setEditDialogOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingPatient(null);
+    setEditForm({});
+    setEditDialogOpen(false);
+  };
+
+  const handleViewDetails = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setViewDialogOpen(true);
   };
 
   const handleSaveEdit = () => {
@@ -117,15 +132,16 @@ export default function Patients() {
                   创建时间: {new Date(patient.createdAt || '').toLocaleDateString('zh-CN')}
                 </div>
                 <div className="space-x-2">
-                  <Dialog>
+                  <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" onClick={() => setSelectedPatient(patient)}>
+                      <Button variant="outline" size="sm" onClick={() => handleViewDetails(patient)}>
                         查看详情
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>患者详细信息</DialogTitle>
+                        <DialogDescription>查看患者的完整医疗信息</DialogDescription>
                       </DialogHeader>
                       {selectedPatient && (
                         <div className="space-y-4">
@@ -189,7 +205,7 @@ export default function Patients() {
                     </DialogContent>
                   </Dialog>
                   
-                  <Dialog>
+                  <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" onClick={() => handleEdit(patient)}>
                         编辑
@@ -198,6 +214,7 @@ export default function Patients() {
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
                         <DialogTitle>编辑患者信息</DialogTitle>
+                        <DialogDescription>修改患者的基本信息和医疗记录</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
@@ -295,7 +312,7 @@ export default function Patients() {
                         </div>
                         
                         <div className="flex justify-end space-x-2 pt-4">
-                          <Button variant="outline" onClick={() => setEditingPatient(null)}>
+                          <Button variant="outline" onClick={handleCancelEdit}>
                             取消
                           </Button>
                           <Button onClick={handleSaveEdit} disabled={updatePatientMutation.isPending}>
