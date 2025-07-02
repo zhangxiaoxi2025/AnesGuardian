@@ -23,9 +23,12 @@ export default function Dashboard() {
     const urlParams = new URLSearchParams(location.split('?')[1] || '');
     const patientParam = urlParams.get('patient');
     if (patientParam) {
-      setCurrentPatientId(parseInt(patientParam));
+      const patientId = parseInt(patientParam);
+      console.log(`Dashboard: Setting patient ID from URL: ${patientId}`);
+      setCurrentPatientId(patientId);
     } else {
-      setCurrentPatientId(1); // Default to patient 1 if no param
+      console.log('Dashboard: No patient parameter in URL');
+      setCurrentPatientId(null); // No default, wait for user action
     }
   }, [location]);
 
@@ -262,12 +265,13 @@ export default function Dashboard() {
     },
   });
 
-  // Initialize demo data on component mount
+  // Only create demo data if no patients exist at all
   useEffect(() => {
-    if (!currentPatientId) {
-      createDemoDataMutation.mutate();
+    if (currentPatientId === null) {
+      // Don't auto-create demo data, let user decide
+      console.log('Dashboard: No patient ID specified in URL');
     }
-  }, []);
+  }, [currentPatientId]);
 
   // Auto-refresh assessment data
   useEffect(() => {
