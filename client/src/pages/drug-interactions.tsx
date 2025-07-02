@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, X, Search, AlertTriangle, AlertCircle, Info } from 'lucide-react';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Loader2, X, Search, AlertTriangle, AlertCircle, Info, Check, ChevronsUpDown } from 'lucide-react';
 
 interface DrugInteraction {
   id: string;
@@ -55,10 +56,8 @@ const getSeverityBadge = (severity: string) => {
 };
 
 export default function DrugInteractions() {
-  const [inputValue, setInputValue] = useState('');
   const [selectedDrugs, setSelectedDrugs] = useState<string[]>([]);
-  const [filteredSuggestions, setFilteredSuggestions] = useState<string[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [open, setOpen] = useState(false);
 
   const drugInteractionMutation = useMutation({
     mutationFn: async (drugs: string[]) => {
@@ -78,21 +77,6 @@ export default function DrugInteractions() {
     },
   });
 
-  const handleInputChange = (value: string) => {
-    setInputValue(value);
-    
-    if (value.trim()) {
-      const filtered = commonDrugs.filter(drug => 
-        drug.toLowerCase().includes(value.toLowerCase()) &&
-        !selectedDrugs.includes(drug)
-      ).slice(0, 10);
-      setFilteredSuggestions(filtered);
-      setShowSuggestions(true);
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
   const addDrug = (drug: string) => {
     if (!selectedDrugs.includes(drug)) {
       setSelectedDrugs(prev => {
@@ -101,8 +85,7 @@ export default function DrugInteractions() {
         return updated;
       });
     }
-    setInputValue('');
-    setShowSuggestions(false);
+    setOpen(false);
   };
 
   const removeDrug = (drugToRemove: string) => {
@@ -111,17 +94,6 @@ export default function DrugInteractions() {
       console.log('Drug removed, updated list:', updated);
       return updated;
     });
-  };
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && inputValue.trim()) {
-      e.preventDefault();
-      if (filteredSuggestions.length > 0) {
-        addDrug(filteredSuggestions[0]);
-      } else if (!selectedDrugs.includes(inputValue.trim())) {
-        addDrug(inputValue.trim());
-      }
-    }
   };
 
   const handleSearch = () => {
@@ -139,12 +111,17 @@ export default function DrugInteractions() {
     return acc;
   }, {} as Record<string, DrugInteraction[]>) || {};
 
+  // 可选择的药物（排除已选择的）
+  const availableDrugs = commonDrugs.filter(drug => !selectedDrugs.includes(drug));
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">药物交互速查</h1>
+    <div className="p-6 max-w-6xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          药物相互作用查询
+        </h1>
         <p className="text-gray-600 dark:text-gray-400">
-          检查多种药物之间的相互作用，评估用药安全性
+          选择两种或更多药物，分析它们之间的潜在相互作用
         </p>
       </div>
 
@@ -156,127 +133,114 @@ export default function DrugInteractions() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="relative">
-            <Input
-              placeholder="请输入药物名称..."
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyPress={handleKeyPress}
-              className="w-full"
-            />
-            
-            {showSuggestions && filteredSuggestions.length > 0 && (
-              <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-md shadow-lg max-h-60 overflow-auto">
-                {filteredSuggestions.map((drug, index) => (
-                  <div
-                    key={index}
-                    className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer text-sm"
-                    onClick={() => addDrug(drug)}
-                  >
-                    {drug}
-                  </div>
-                ))}
-              </div>
-            )}
+          {/* 多选组合框 */}
+          <div className="space-y-2">
+            <Popover open={open} onOpenChange={setOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  role="combobox"
+                  aria-expanded={open}
+                  className="w-full justify-between"
+                >
+                  选择药物...
+                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-full p-0">
+                <Command>
+                  <CommandInput placeholder="搜索药物..." />
+                  <CommandEmpty>未找到药物</CommandEmpty>
+                  <CommandGroup className="max-h-64 overflow-auto">
+                    {availableDrugs.map((drug) => (
+                      <CommandItem
+                        key={drug}
+                        value={drug}
+                        onSelect={() => addDrug(drug)}
+                      >
+                        <Check
+                          className={`mr-2 h-4 w-4 ${
+                            selectedDrugs.includes(drug) ? "opacity-100" : "opacity-0"
+                          }`}
+                        />
+                        {drug}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
           </div>
 
+          {/* 已选择的药物徽章 */}
           {selectedDrugs.length > 0 && (
             <div className="space-y-2">
               <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                已选择的药物: ({selectedDrugs.length}种)
-                {selectedDrugs.length >= 2 && (
-                  <span className="text-green-600 dark:text-green-400 ml-2">✓ 已满足查询条件</span>
-                )}
+                已选择的药物 ({selectedDrugs.length}):
               </p>
               <div className="flex flex-wrap gap-2">
-                {selectedDrugs.map((drug, index) => (
-                  <Badge
-                    key={index}
-                    variant="secondary"
-                    className="flex items-center gap-1 py-1 px-2"
-                  >
+                {selectedDrugs.map((drug) => (
+                  <Badge key={drug} variant="default" className="flex items-center gap-1 px-3 py-1">
                     {drug}
-                    <button
+                    <X
+                      className="h-3 w-3 ml-1 cursor-pointer hover:text-red-500"
                       onClick={() => removeDrug(drug)}
-                      className="ml-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded-full p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    />
                   </Badge>
                 ))}
               </div>
             </div>
           )}
 
-          <div className="flex gap-2">
-            <Button
-              onClick={handleSearch}
-              disabled={selectedDrugs.length < 2 || drugInteractionMutation.isPending}
-              className={`flex items-center gap-2 ${
-                selectedDrugs.length >= 2 && !drugInteractionMutation.isPending 
-                  ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                  : ''
-              }`}
-            >
-              {drugInteractionMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Search className="h-4 w-4" />
-              )}
-              查询交互 ({selectedDrugs.length}/2+)
-            </Button>
-            
-            {selectedDrugs.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={() => setSelectedDrugs([])}
-              >
-                清空选择
-              </Button>
-            )}
+          {/* 状态显示 */}
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {selectedDrugs.length === 0 && "请选择至少2种药物进行交互分析"}
+            {selectedDrugs.length === 1 && "请再选择至少1种药物"}
+            {selectedDrugs.length >= 2 && `可以分析 ${selectedDrugs.length} 种药物的相互作用`}
           </div>
 
-          {selectedDrugs.length < 2 && selectedDrugs.length > 0 && (
-            <Alert>
-              <Info className="h-4 w-4" />
-              <AlertDescription>
-                请至少选择2种药物进行交互查询
-              </AlertDescription>
-            </Alert>
-          )}
+          {/* 查询按钮 */}
+          <Button
+            onClick={handleSearch}
+            disabled={selectedDrugs.length < 2 || drugInteractionMutation.isPending}
+            className={`w-full ${selectedDrugs.length >= 2 ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+          >
+            {drugInteractionMutation.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            查询交互
+          </Button>
         </CardContent>
       </Card>
 
+      {/* 查询结果 */}
       {drugInteractionMutation.data && (
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-            查询结果 ({drugInteractionMutation.data.interactions.length}个交互)
+          <h2 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
+            相互作用分析结果
           </h2>
           
-          {drugInteractionMutation.data.interactions.length === 0 ? (
+          {Object.keys(groupedInteractions).length === 0 ? (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                恭喜！所选药物之间未发现已知的相互作用。
+                未发现明显的药物相互作用，但仍建议在用药前咨询医师。
               </AlertDescription>
             </Alert>
           ) : (
             <div className="space-y-6">
-              {['major', 'moderate', 'minor'].map(severity => {
-                const interactions = groupedInteractions[severity] || [];
-                if (interactions.length === 0) return null;
-                
-                const severityLabels = {
-                  major: '严重交互',
-                  moderate: '中等交互',
-                  minor: '轻微交互'
+              {Object.entries(groupedInteractions).map(([severity, interactions]) => {
+                const severityConfig = {
+                  'major': { title: '严重相互作用', color: 'border-red-500', bgColor: 'bg-red-50 dark:bg-red-950' },
+                  'moderate': { title: '中等相互作用', color: 'border-yellow-500', bgColor: 'bg-yellow-50 dark:bg-yellow-950' },
+                  'minor': { title: '轻微相互作用', color: 'border-blue-500', bgColor: 'bg-blue-50 dark:bg-blue-950' }
                 };
-
+                
                 return (
-                  <div key={severity} className="space-y-3">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 flex items-center gap-2">
+                  <div key={severity} className={`border-l-4 ${severityConfig[severity as keyof typeof severityConfig]?.color} ${severityConfig[severity as keyof typeof severityConfig]?.bgColor} p-4 rounded-r-lg`}>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                       {getSeverityIcon(severity)}
-                      {severityLabels[severity as keyof typeof severityLabels]} ({interactions.length})
+                      {severityConfig[severity as keyof typeof severityConfig]?.title}
                     </h3>
                     
                     <div className="grid gap-3">
