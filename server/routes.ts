@@ -99,21 +99,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Patient not found" });
       }
 
-      // Create new assessment
-      const assessment = await storage.createAssessment({
-        patientId,
-        status: "in_progress"
-      });
-
-      // Start the simplified agent orchestration
-      const { SimpleAgentOrchestrator } = await import('./services/simple-agents');
-      const orchestrator = new SimpleAgentOrchestrator(assessment.id);
-      
-      // Run assessment in background
-      orchestrator.runAssessment(patientId)
-        .catch(error => {
-          console.error('Background assessment failed:', error);
+      // Get or create assessment
+      let assessment = await storage.getAssessmentByPatientId(patientId);
+      if (!assessment) {
+        assessment = await storage.createAssessment({
+          patientId,
+          status: "in_progress",
+          overallRisk: null,
+          riskFactors: [],
+          drugInteractions: [],
+          clinicalGuidelines: [],
+          recommendations: [],
+          agentStatus: {}
         });
+      }
+
+      // Use AssessmentManager for consistent, robust handling
+      const { AssessmentManager } = await import('./services/assessment-manager');
+      const manager = AssessmentManager.getInstance();
+      
+      // Start assessment with timeout protection and error handling
+      await manager.startAssessment(patientId, assessment.id);
 
       res.json({ message: "Assessment started", assessmentId: assessment.id });
     } catch (error) {
