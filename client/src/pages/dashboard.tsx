@@ -18,51 +18,30 @@ export default function Dashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Extract patient ID from URL parameters using window.location.search directly
+  // Extract patient ID from URL parameters when location changes
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const patientParam = urlParams.get('patient');
+    console.log(`Dashboard: Location changed to: "${location}"`);
     console.log(`Dashboard: Current URL: "${window.location.href}"`);
     console.log(`Dashboard: Search params: "${window.location.search}"`);
-    console.log(`Dashboard: Patient parameter from URL: "${patientParam}"`);
     
-    if (patientParam) {
-      const patientId = parseInt(patientParam, 10);
-      if (!isNaN(patientId)) {
-        console.log(`Dashboard: Setting patient ID from URL: ${patientId}`);
-        setCurrentPatientId(patientId);
+    const params = new URLSearchParams(window.location.search);
+    const patientId = params.get('patient');
+    console.log(`Dashboard: Patient parameter from URL: "${patientId}"`);
+    
+    if (patientId) {
+      const parsedId = parseInt(patientId, 10);
+      if (!isNaN(parsedId)) {
+        console.log(`Dashboard: Setting patient ID: ${parsedId}`);
+        setCurrentPatientId(parsedId);
       } else {
         console.log('Dashboard: Invalid patient ID in URL');
         setCurrentPatientId(null);
       }
     } else {
-      console.log('Dashboard: No patient parameter in URL, showing no-patient state');
+      console.log('Dashboard: No patient parameter in URL');
       setCurrentPatientId(null);
     }
-  }, [location]); // This will trigger when wouter location changes
-
-  // Also listen to popstate events for direct URL changes
-  useEffect(() => {
-    const handlePopState = () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const patientParam = urlParams.get('patient');
-      console.log(`Dashboard: PopState - Patient parameter: "${patientParam}"`);
-      
-      if (patientParam) {
-        const patientId = parseInt(patientParam, 10);
-        if (!isNaN(patientId)) {
-          setCurrentPatientId(patientId);
-        } else {
-          setCurrentPatientId(null);
-        }
-      } else {
-        setCurrentPatientId(null);
-      }
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
+  }, [location]);
 
   // PDF export function
   const handleExportPDF = (patient: Patient, assessment: Assessment) => {
@@ -260,48 +239,45 @@ export default function Dashboard() {
   };
 
   // Fetch patient data
-  const { data: patient, isLoading: patientLoading } = useQuery({
+  const { data: patient, isLoading: patientLoading } = useQuery<Patient>({
     queryKey: ['/api/patients', currentPatientId],
     enabled: currentPatientId !== null,
   });
 
   // Fetch assessment data
-  const { data: assessment, isLoading: assessmentLoading } = useQuery({
+  const { data: assessment, isLoading: assessmentLoading } = useQuery<Assessment>({
     queryKey: ['/api/patients', currentPatientId, 'assessment'],
     enabled: currentPatientId !== null,
   });
 
   // Create demo data mutation
-  const createDemoDataMutation = useMutation({
+  const createDemoDataMutation = useMutation<Patient>({
     mutationFn: async () => {
-      const response = await apiRequest('/api/patients', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: '演示患者',
-          age: 65,
-          gender: '男',
-          surgeryType: '腹腔镜胆囊切除术',
-          asaClass: 'II',
-          medicalHistory: ['高血压', '糖尿病'],
-          medications: ['氨氯地平', '二甲双胍'],
-          allergies: ['青霉素'],
-          vitalSigns: {
-            bloodPressure: '140/90',
-            heartRate: 78,
-            temperature: 36.5,
-            respiratoryRate: 16,
-            oxygenSaturation: 98
-          },
-          labResults: {
-            hemoglobin: 12.5,
-            whiteBloodCell: 6.8,
-            platelet: 250,
-            glucose: 7.2,
-            creatinine: 85
-          }
-        }),
+      const response = await apiRequest('POST', '/api/patients', {
+        name: '演示患者',
+        age: 65,
+        gender: '男',
+        surgeryType: '腹腔镜胆囊切除术',
+        asaClass: 'II',
+        medicalHistory: ['高血压', '糖尿病'],
+        medications: ['氨氯地平', '二甲双胍'],
+        allergies: ['青霉素'],
+        vitalSigns: {
+          bloodPressure: '140/90',
+          heartRate: 78,
+          temperature: 36.5,
+          respiratoryRate: 16,
+          oxygenSaturation: 98
+        },
+        labResults: {
+          hemoglobin: 12.5,
+          whiteBloodCell: 6.8,
+          platelet: 250,
+          glucose: 7.2,
+          creatinine: 85
+        }
       });
-      return response;
+      return await response.json();
     },
     onSuccess: (newPatient: Patient) => {
       setCurrentPatientId(newPatient.id);
@@ -328,10 +304,8 @@ export default function Dashboard() {
   // Reset assessment mutation
   const resetAssessmentMutation = useMutation({
     mutationFn: async (patientId: number) => {
-      const response = await apiRequest(`/api/patients/${patientId}/reset-assessment`, {
-        method: 'POST',
-      });
-      return response;
+      const response = await apiRequest('POST', `/api/patients/${patientId}/reset-assessment`);
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/patients', currentPatientId, 'assessment'] });
