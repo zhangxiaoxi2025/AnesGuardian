@@ -48,7 +48,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(patient);
     } catch (error) {
-      res.status(400).json({ message: error.message });
+      res.status(400).json({ message: (error as Error).message });
+    }
+  });
+
+  app.patch("/api/patients/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const validatedData = insertPatientSchema.partial().parse(req.body);
+      const patient = await storage.updatePatient(id, validatedData);
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      res.json(patient);
+    } catch (error) {
+      res.status(400).json({ message: (error as Error).message });
     }
   });
 
