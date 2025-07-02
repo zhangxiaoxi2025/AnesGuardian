@@ -12,7 +12,7 @@ import { AgentStatusCard } from '@/components/agent-status';
 import { RiskAssessment } from '@/components/risk-assessment';
 import { DrugInteractions } from '@/components/drug-interactions';
 import { ClinicalGuidelines } from '@/components/clinical-guidelines';
-import { Patient, Assessment, AgentStatus } from '@/shared/schema';
+import type { Patient, Assessment, AgentStatus } from '../../../shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 
 export default function Dashboard() {
@@ -117,7 +117,7 @@ export default function Dashboard() {
           <div class="risk-section">
             <h2>建议</h2>
             <ul>
-              ${assessment.recommendations.map(rec => `<li>${rec}</li>`).join('')}
+              ${assessment.recommendations.map((rec: string) => `<li>${rec}</li>`).join('')}
             </ul>
           </div>
           ` : ''}
@@ -175,6 +175,36 @@ export default function Dashboard() {
   const handleCreateDemoData = () => {
     createDemoDataMutation.mutate();
   };
+
+  // Start AI assessment mutation
+  const startAssessmentMutation = useMutation({
+    mutationFn: async (patientId: number) => {
+      const response = await apiRequest('POST', `/api/patients/${patientId}/assess`);
+      return await response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['assessment', currentPatientId] });
+      toast({
+        title: "AI评估已启动",
+        description: "正在进行智能风险评估分析...",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "启动评估失败",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Auto-trigger assessment when patient data is loaded
+  useEffect(() => {
+    if (patient && currentPatientId && assessment?.status !== 'completed' && assessment?.status !== 'in_progress') {
+      console.log('Dashboard: Auto-triggering assessment for patient:', currentPatientId);
+      startAssessmentMutation.mutate(currentPatientId);
+    }
+  }, [patient, currentPatientId, assessment?.status]);
 
   // Reset assessment mutation
   const resetAssessmentMutation = useMutation({
