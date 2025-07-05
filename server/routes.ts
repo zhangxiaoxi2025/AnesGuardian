@@ -323,6 +323,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Drug Interaction Deep Analysis endpoint
+  app.post("/api/interactions/explain", async (req, res) => {
+    try {
+      const { drugA, drugB } = req.body;
+      
+      if (!drugA || !drugB || typeof drugA !== 'string' || typeof drugB !== 'string') {
+        return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
+      }
+
+      const { analyzeDrugInteractionDeep } = await import('./services/gemini');
+      const analysis = await analyzeDrugInteractionDeep(drugA, drugB);
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Deep drug interaction analysis error:', error);
+      res.status(500).json({ message: "深度分析服务暂时不可用" });
+    }
+  });
+
   // Initialize drug database endpoint
   app.post("/api/drugs/init", async (req, res) => {
     try {

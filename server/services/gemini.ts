@@ -360,3 +360,59 @@ Extract information in JSON format:
     };
   }
 }
+
+export async function analyzeDrugInteractionDeep(drugA: string, drugB: string): Promise<any> {
+  try {
+    const prompt = `你是一位顶级的临床药学专家和麻醉学专家。请深入分析 ${drugA} 与 ${drugB} 之间的相互作用。请严格按照以下JSON格式返回你的分析结果：
+
+{
+  "mechanism": "请详细解释这两种药物相互作用的药理学机制，包括药物的作用部位、代谢途径、以及相互影响的分子生物学基础。",
+  "consequences": "请描述这种相互作用可能导致的具体临床后果和风险，包括对患者生理功能的影响、可能出现的不良反应、以及对麻醉和手术过程的影响。",
+  "recommendations": {
+    "monitoring": "需要进行哪些额外的生命体征或指标监测？请具体说明监测频率、关键指标和注意事项。",
+    "dose_adjustment": "是否需要调整其中一种或两种药物的剂量？如何调整？请提供具体的剂量调整方案和调整依据。",
+    "alternatives": "如果风险过高，是否有更安全的替代药物可以选择？请列出几种方案，包括替代药物的名称、优势和使用注意事项。"
+  }
+}
+
+请基于最新的临床指南和循证医学证据进行分析，确保建议的科学性和实用性。`;
+
+    const response = await genAI.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            mechanism: { type: "string" },
+            consequences: { type: "string" },
+            recommendations: {
+              type: "object",
+              properties: {
+                monitoring: { type: "string" },
+                dose_adjustment: { type: "string" },
+                alternatives: { type: "string" }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    return JSON.parse(response.text || '{}');
+  } catch (error) {
+    console.error('Deep drug interaction analysis failed:', error);
+    
+    // 提供备用分析结果
+    return {
+      mechanism: `${drugA}与${drugB}可能通过多种途径产生相互作用，包括药物代谢酶竞争、受体结合竞争、或者药效学协同作用。具体机制需要进一步评估。`,
+      consequences: "可能导致药物效力增强或减弱，增加不良反应风险，或影响麻醉深度和恢复时间。建议密切监测患者状态。",
+      recommendations: {
+        monitoring: "建议监测生命体征、意识水平、以及相关药物的血药浓度（如有条件）。",
+        dose_adjustment: "考虑根据患者反应调整其中一种药物的剂量，建议从较低剂量开始，逐步调整。",
+        alternatives: "如风险较高，可考虑使用同类但相互作用较少的替代药物，具体选择需结合患者情况。"
+      }
+    };
+  }
+}
