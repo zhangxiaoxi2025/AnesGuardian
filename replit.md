@@ -99,6 +99,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 2, 2025: Comprehensive Core Drug Database Integration with AI Knowledge Base
+  - Replaced external search dependency with AI-generated comprehensive drug database containing 218 essential medications
+  - Categories include: Heart disease (20), Hypertension (20), Diabetes (20), Depression (20), Parkinson's (20), Kidney disease precautions (20), and Complete anesthesia drugs (98)
+  - Created dedicated import script (scripts/import-drugs.ts) for batch drug data insertion
+  - Enhanced search algorithm to support both Chinese names and English aliases with PostgreSQL full-text search
+  - Fixed critical runtime error: Changed `interaction.drugs.join(' 与 ')` to `(interaction.drugs || []).join(' 与 ')` for null safety
+  - Added comprehensive drug categories: IV anesthetics, inhalation anesthetics, opioids, muscle relaxants, local anesthetics, vasopressors, sedatives, anticholinergics, antiemetics, steroids
+  - Included detailed preoperative drug cessation guidelines for each medication category
+  - System now supports robust drug interaction analysis with extensive medical knowledge base
 - July 2, 2025: Major Drug Interaction System Architecture Upgrade
   - Migrated from hardcoded drug lists to PostgreSQL database with comprehensive drug information
   - Created dedicated drugs table with id, name, aliases, category, and stopGuideline fields

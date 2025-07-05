@@ -333,7 +333,7 @@ export default function DrugInteractions() {
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                                {interaction.drugs.join(' 与 ')}
+                                {(interaction.drugs || []).join(' 与 ')}
                               </h4>
                               {getSeverityBadge(interaction.severity)}
                             </div>
