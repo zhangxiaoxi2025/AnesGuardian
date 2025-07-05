@@ -507,58 +507,105 @@ Extract information in JSON format:
 
 export async function analyzeDrugInteractionDeep(drugA: string, drugB: string): Promise<any> {
   try {
-    const prompt = `作为一名资深的临床药理学家和麻醉医生，请深入分析【${drugA}】与【${drugB}】之间的药物相互作用。
+    const prompt = `# 角色
+你是一名资深的临床药理学家和麻醉医生，专门为临床应用提供精确的药物相互作用分析。
 
-请严格按照以下结构进行回答：
+# 任务
+分析【${drugA}】与【${drugB}】的药物相互作用。
 
-### 1. 风险等级与核心摘要
-- **风险等级**: [严重/主要/中等/次要]
-- **核心风险摘要**: [用一句话概括最重要的临床风险]
+# 输出格式要求
+请严格按照下面的JSON格式输出你的分析结果。不要在JSON代码块前后添加任何额外的解释或文字。只需提供一个纯粹的JSON对象。
 
-### 2. 药理学相互作用机制
-- **药效学（PD）**: [描述两种药物在作用靶点上的协同或拮抗效应]
-- **药代学（PK）**: [描述一种药物如何影响另一种药物的代谢]
-
-### 3. 可能的临床后果与风险
-- **中枢神经系统**: [过度镇静、苏醒延迟等]
-- **心血管系统**: [低血压、心律失常等]
-- **其他**: [其他需要关注的潜在风险]
-
-### 4. 专业临床建议
-- **生命体征监测重点**: [明确指出需要密切监测的关键指标]
-- **剂量调整方案**: [提供具体的剂量调整原则]
-- **替代药物方案**: [建议考虑哪些替代药物]
-- **急救预案**: [需要提前准备哪些急救药品或设备]
-
-请确保回答专业、严谨、简洁，避免宽泛无用的内容，聚焦于临床决策。`;
+\`\`\`json
+{
+  "riskLevel": "在此处填写风险等级",
+  "coreRiskSummary": "在此处用一句话概括核心风险",
+  "pharmacology": {
+    "pharmacodynamics": "在此处解释药效学相互作用机制",
+    "pharmacokinetics": "在此处解释药代学相互作用机制"
+  },
+  "clinicalConsequences": {
+    "cns": "在此处描述中枢神经系统相关后果",
+    "cardiovascular": "在此处描述心血管系统相关后果",
+    "other": "在此处描述其他潜在风险"
+  },
+  "recommendations": {
+    "monitoring": "在此处提供具体的生命体征监测重点",
+    "doseAdjustment": "在此处提供具体的剂量调整方案",
+    "alternatives": "在此处提供替代药物方案及其理由",
+    "emergencyPlan": "在此处提供应急预案"
+  }
+}
+\`\`\``;
 
     const response = await genAI.models.generateContent({
       model: "gemini-1.5-flash",
-      contents: prompt
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            riskLevel: { type: "string" },
+            coreRiskSummary: { type: "string" },
+            pharmacology: {
+              type: "object",
+              properties: {
+                pharmacodynamics: { type: "string" },
+                pharmacokinetics: { type: "string" }
+              }
+            },
+            clinicalConsequences: {
+              type: "object",
+              properties: {
+                cns: { type: "string" },
+                cardiovascular: { type: "string" },
+                other: { type: "string" }
+              }
+            },
+            recommendations: {
+              type: "object",
+              properties: {
+                monitoring: { type: "string" },
+                doseAdjustment: { type: "string" },
+                alternatives: { type: "string" },
+                emergencyPlan: { type: "string" }
+              }
+            }
+          }
+        }
+      }
     });
 
-    // 解析回应文本，提取各个部分
-    const responseText = response.text || '';
+    // 直接解析JSON响应
+    const jsonResponse = JSON.parse(response.text || '{}');
     
-    // 简单的文本解析，提取主要内容
-    const mechanism = responseText.includes('药理学相互作用机制') ? 
-      responseText.split('药理学相互作用机制')[1]?.split('###')[0]?.trim() || '详细的药理学机制分析' :
-      '详细的药理学机制分析';
-    
-    const consequences = responseText.includes('可能的临床后果与风险') ?
-      responseText.split('可能的临床后果与风险')[1]?.split('###')[0]?.trim() || '潜在的临床风险评估' :
-      '潜在的临床风险评估';
-    
-    const monitoring = responseText.includes('专业临床建议') ?
-      responseText.split('专业临床建议')[1]?.trim() || '专业的临床监护建议' :
-      '专业的临床监护建议';
+    // 将新格式转换为前端期望的格式
+    const formattedResponse = {
+      mechanism: `### 1. 风险等级与核心摘要
+- **风险等级**: ${jsonResponse.riskLevel}
+- **核心风险摘要**: ${jsonResponse.coreRiskSummary}
 
-    return {
-      mechanism,
-      consequences,
-      monitoring,
-      fullAnalysis: responseText
+### 2. 药理学相互作用机制
+- **药效学（PD）**: ${jsonResponse.pharmacology?.pharmacodynamics}
+- **药代学（PK）**: ${jsonResponse.pharmacology?.pharmacokinetics}`,
+      
+      consequences: `### 3. 可能的临床后果与风险
+- **中枢神经系统**: ${jsonResponse.clinicalConsequences?.cns}
+- **心血管系统**: ${jsonResponse.clinicalConsequences?.cardiovascular}
+- **其他**: ${jsonResponse.clinicalConsequences?.other}`,
+      
+      recommendations: {
+        monitoring: jsonResponse.recommendations?.monitoring,
+        dose_adjustment: jsonResponse.recommendations?.doseAdjustment,
+        alternatives: jsonResponse.recommendations?.alternatives,
+        emergencyPlan: jsonResponse.recommendations?.emergencyPlan
+      },
+      
+      fullAnalysis: `基于AI的${drugA}与${drugB}相互作用完整JSON结构化分析`
     };
+
+    return formattedResponse;
   } catch (error) {
     console.error('Deep drug interaction analysis failed:', error);
     

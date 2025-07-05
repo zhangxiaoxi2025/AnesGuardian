@@ -1,0 +1,53 @@
+Hello Agent, I need your help to fix a bug and improve my AnesGuardian application. Please follow these steps carefully:
+
+**Step 1: Fix the Runtime Crash in the Frontend**
+
+The application is crashing in the file `client/src/pages/drug-interactions.tsx` with the error `Cannot read properties of undefined`. This happens because the data object `analysisData` received from the backend is sometimes incomplete.
+
+Your task is to make the frontend component robust. Please edit `client/src/pages/drug-interactions.tsx` and apply JavaScript's optional chaining operator (`?.`) to every property access on the `analysisData` object.
+
+For example, change `{analysisData.recommendations.monitoring}` to `{analysisData?.recommendations?.monitoring}`. Please find all similar occurrences and fix them.
+
+**Step 2: Refactor the Backend to Use a JSON-based Prompt**
+
+After fixing the frontend, I want to make the backend more reliable. We will change the way we interact with the Gemini AI model.
+
+Your task is to refactor the file `server/services/gemini.ts`.
+
+1.  **Replace the current prompt:** Find the part of the code that generates the prompt for the Gemini model. Replace the old prompt with the new, more structured prompt template provided below. The function should dynamically insert the actual drug names into the `[DRUG1]` and `[DRUG2]` placeholders.
+
+2.  **Parse the AI's JSON response:** The new prompt will ask the AI to return a JSON string. After receiving the response from Gemini, you must parse this JSON string into a JavaScript object. For example, using `JSON.parse()`.
+
+3.  **Return the parsed object:** The main function in this file should now return the fully parsed JavaScript object, which will be sent to the frontend.
+
+Here is the new prompt template to use:
+---
+# 角色
+你是一名资深的临床药理学家和麻醉医生，专门为临床应用提供精确的药物相互作用分析。
+
+# 任务
+分析【[DRUG1]】与【[DRUG2]】的药物相互作用。
+
+# 输出格式要求
+请严格按照下面的JSON格式输出你的分析结果。不要在JSON代码块前后添加任何额外的解释或文字。只需提供一个纯粹的JSON对象。
+
+```json
+{
+  "riskLevel": "在此处填写风险等级",
+  "coreRiskSummary": "在此处用一句话概括核心风险",
+  "pharmacology": {
+    "pharmacodynamics": "在此处解释药效学相互作用机制",
+    "pharmacokinetics": "在此处解释药代学相互作用机制"
+  },
+  "clinicalConsequences": {
+    "cns": "在此处描述中枢神经系统相关后果",
+    "cardiovascular": "在此处描述心血管系统相关后果",
+    "other": "在此处描述其他潜在风险"
+  },
+  "recommendations": {
+    "monitoring": "在此处提供具体的生命体征监测重点",
+    "doseAdjustment": "在此处提供具体的剂量调整方案",
+    "alternatives": "在此处提供替代药物方案及其理由",
+    "emergencyPlan": "在此处提供应急预案"
+  }
+}

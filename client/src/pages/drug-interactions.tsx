@@ -22,13 +22,15 @@ interface DrugInteractionResponse {
 }
 
 interface InteractionAnalysis {
-  mechanism: string;
-  consequences: string;
-  recommendations: {
-    monitoring: string;
-    dose_adjustment: string;
-    alternatives: string;
+  mechanism?: string;
+  consequences?: string;
+  recommendations?: {
+    monitoring?: string;
+    dose_adjustment?: string;
+    alternatives?: string;
+    emergencyPlan?: string;
   };
+  fullAnalysis?: string;
 }
 
 interface Drug {
@@ -187,8 +189,8 @@ export default function DrugInteractions() {
   };
 
   // 防崩溃处理数据
-  const responseData = drugInteractionMutation.data || {};
-  const interactions = Array.isArray(responseData.interactions) ? responseData.interactions : [];
+  const responseData = drugInteractionMutation.data as DrugInteractionResponse | undefined;
+  const interactions = Array.isArray(responseData?.interactions) ? responseData.interactions : [];
 
   const groupedInteractions = interactions.reduce((acc: Record<string, DrugInteraction[]>, interaction: DrugInteraction) => {
     const severity = interaction.severity || 'minor';
@@ -379,7 +381,7 @@ export default function DrugInteractions() {
                     </h3>
                     
                     <div className="grid gap-3">
-                      {interactions.length === 0 ? (
+                      {(interactions as DrugInteraction[]).length === 0 ? (
                         <div className="text-center py-8 px-4">
                           <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
                             <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
@@ -392,7 +394,7 @@ export default function DrugInteractions() {
                           </p>
                         </div>
                       ) : (
-                        interactions.map((interaction: DrugInteraction) => (
+                        (interactions as DrugInteraction[]).map((interaction: DrugInteraction) => (
                           <Card 
                             key={interaction.id} 
                             className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border hover:border-blue-400 hover:shadow-md group"
@@ -494,7 +496,7 @@ export default function DrugInteractions() {
                     药理学相互作用机制
                   </h3>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {analysisData.mechanism}
+                    {analysisData?.mechanism}
                   </p>
                 </Card>
 
@@ -505,7 +507,7 @@ export default function DrugInteractions() {
                     可能的临床后果与风险
                   </h3>
                   <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {analysisData.consequences}
+                    {analysisData?.consequences}
                   </p>
                 </Card>
 
@@ -521,7 +523,7 @@ export default function DrugInteractions() {
                     <div className="border-l-4 border-blue-500 pl-4">
                       <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">生命体征监测</h4>
                       <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData.recommendations.monitoring}
+                        {analysisData?.recommendations?.monitoring}
                       </p>
                     </div>
 
@@ -529,7 +531,7 @@ export default function DrugInteractions() {
                     <div className="border-l-4 border-yellow-500 pl-4">
                       <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">剂量调整方案</h4>
                       <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData.recommendations.dose_adjustment}
+                        {analysisData?.recommendations?.dose_adjustment}
                       </p>
                     </div>
 
@@ -537,7 +539,7 @@ export default function DrugInteractions() {
                     <div className="border-l-4 border-green-500 pl-4">
                       <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">替代药物方案</h4>
                       <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData.recommendations.alternatives}
+                        {analysisData?.recommendations?.alternatives}
                       </p>
                     </div>
                   </div>
