@@ -22,7 +22,9 @@ function Router() {
       <Route path="/agents" component={Agents} />
       <Route path="/chat" component={Chat} />
       <Route path="/risk" component={Dashboard} />
+      <Route path="/drug-interactions" component={DrugInteractions} />
       <Route path="/drugs" component={DrugInteractions} />
+      <Route path="/clinical-guidelines" component={ClinicalGuidelines} />
       <Route path="/guidelines" component={ClinicalGuidelines} />
       <Route component={NotFound} />
     </Switch>
