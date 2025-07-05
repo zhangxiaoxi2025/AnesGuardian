@@ -99,16 +99,24 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 5, 2025: Complete Patient Form Redesign with Integrated AI Medical Record Processing
+  - Completely restructured "添加新患者" workflow with two-section design
+  - Upper section: Traditional manual patient information input (name, age, gender, surgery type, etc.)
+  - Lower section: Revolutionary "病历智能识别" area with photo upload and AI extraction
+  - Implemented seamless OCR → AI → Manual Review workflow within single form
+  - Added real-time status indicators (idle/success/error) with visual feedback
+  - Created dual-mode workflow: doctors can choose manual input OR photo-assisted input
+  - AI-extracted information auto-fills into editable text areas for medical review
+  - Built comprehensive error handling and file validation
+  - Moved upload functionality from standalone dialog to integrated form experience
+  - Enhanced UX with loading states, progress indicators, and confirmation messages
 - July 5, 2025: Revolutionary Medical Record OCR and AI Information Extraction System
   - Implemented complete medical record photo upload and processing pipeline
   - Added OCR text recognition using Tesseract.js for Chinese and English medical documents
   - Integrated Gemini AI for intelligent information extraction from medical records
-  - Created professional UI with photo upload, progress tracking, and review workflow
   - Built 3-stage processing: OCR → AI Extraction → Medical Review Interface
   - Added comprehensive error handling and file validation (10MB limit, image files only)
-  - Designed medical-grade review interface with editable tags for diagnoses and medications
   - Implemented safety-first approach requiring medical professional approval before data storage
-  - Revolutionary feature enables rapid patient data entry from paper medical records
 - July 2, 2025: Comprehensive Core Drug Database Integration with AI Knowledge Base
   - Replaced external search dependency with AI-generated comprehensive drug database containing 218 essential medications
   - Categories include: Heart disease (20), Hypertension (20), Diabetes (20), Depression (20), Parkinson's (20), Kidney disease precautions (20), and Complete anesthesia drugs (98)

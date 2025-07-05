@@ -21,11 +21,7 @@ export default function Patients() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editForm, setEditForm] = useState<Partial<InsertPatient>>({});
-  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [uploadingFile, setUploadingFile] = useState(false);
-  const [extractedData, setExtractedData] = useState<any>(null);
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -58,52 +54,7 @@ export default function Patients() {
     },
   });
 
-  // 病历照片上传功能
-  const uploadMedicalRecord = useMutation({
-    mutationFn: async (file: File) => {
-      const formData = new FormData();
-      formData.append('image', file);
-      
-      const response = await fetch('/api/records/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('上传失败');
-      }
-      
-      return response.json();
-    },
-    onSuccess: (data) => {
-      setExtractedData(data);
-      setUploadDialogOpen(false);
-      setReviewDialogOpen(true);
-      toast({
-        title: "病历识别成功",
-        description: "请审核提取的信息",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "上传失败",
-        description: "请稍后重试",
-        variant: "destructive",
-      });
-    },
-  });
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setUploadingFile(true);
-      uploadMedicalRecord.mutate(file);
-    }
-  };
-
-  const triggerFileUpload = () => {
-    fileInputRef.current?.click();
-  };
 
   const handleEdit = (patient: Patient) => {
     setEditingPatient(patient);
@@ -182,22 +133,12 @@ export default function Patients() {
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900">患者管理</h1>
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => setUploadDialogOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Camera className="w-4 h-4" />
-            上传病历照片
+        <Link href="/patients/new">
+          <Button className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            添加新患者
           </Button>
-          <Link href="/patients/new">
-            <Button className="flex items-center gap-2">
-              <Plus className="w-4 h-4" />
-              添加新患者
-            </Button>
-          </Link>
-        </div>
+        </Link>
       </div>
 
       <div className="grid gap-4">
@@ -436,139 +377,7 @@ export default function Patients() {
         )}
       </div>
 
-      {/* 病历照片上传对话框 */}
-      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>上传病历照片</DialogTitle>
-            <DialogDescription>
-              选择病历照片，系统将自动识别并提取患者信息
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <div className="flex flex-col items-center gap-4 p-6 border-2 border-dashed border-gray-300 rounded-lg">
-              <Camera className="w-12 h-12 text-gray-400" />
-              <div className="text-center">
-                <p className="text-sm text-gray-600 mb-2">点击选择照片或拍摄新照片</p>
-                <p className="text-xs text-gray-500">支持 JPG、PNG 格式</p>
-              </div>
-            </div>
-            
-            <div className="flex gap-2">
-              <Button 
-                onClick={triggerFileUpload}
-                disabled={uploadMedicalRecord.isPending}
-                className="flex-1"
-              >
-                <Upload className="w-4 h-4 mr-2" />
-                {uploadMedicalRecord.isPending ? '识别中...' : '选择照片'}
-              </Button>
-            </div>
-          </div>
-          
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-        </DialogContent>
-      </Dialog>
 
-      {/* 审核提取结果对话框 */}
-      <Dialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>审核提取结果</DialogTitle>
-            <DialogDescription>
-              请检查AI提取的信息，确认正确后可添加到患者档案
-            </DialogDescription>
-          </DialogHeader>
-          
-          {extractedData && (
-            <div className="space-y-6">
-              {/* 诊断信息 */}
-              {extractedData.diagnoses && extractedData.diagnoses.length > 0 && (
-                <div>
-                  <h3 className="font-medium mb-3">诊断信息</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {extractedData.diagnoses.map((diagnosis: string, index: number) => (
-                      <Badge key={index} variant="secondary" className="px-3 py-1">
-                        {diagnosis}
-                        <button 
-                          onClick={() => {
-                            const newDiagnoses = extractedData.diagnoses.filter((_: any, i: number) => i !== index);
-                            setExtractedData({...extractedData, diagnoses: newDiagnoses});
-                          }}
-                          className="ml-2 text-red-500 hover:text-red-700"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 用药信息 */}
-              {extractedData.medications && extractedData.medications.length > 0 && (
-                <div>
-                  <h3 className="font-medium mb-3">当前用药</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {extractedData.medications.map((medication: string, index: number) => (
-                      <Badge key={index} variant="outline" className="px-3 py-1">
-                        {medication}
-                        <button 
-                          onClick={() => {
-                            const newMedications = extractedData.medications.filter((_: any, i: number) => i !== index);
-                            setExtractedData({...extractedData, medications: newMedications});
-                          }}
-                          className="ml-2 text-red-500 hover:text-red-700"
-                        >
-                          ×
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 其他信息 */}
-              {extractedData.rawText && (
-                <div>
-                  <h3 className="font-medium mb-3">原始识别文本</h3>
-                  <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-700 max-h-32 overflow-y-auto">
-                    {extractedData.rawText}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-end gap-2 pt-4">
-                <Button 
-                  variant="outline" 
-                  onClick={() => setReviewDialogOpen(false)}
-                >
-                  取消
-                </Button>
-                <Button 
-                  onClick={() => {
-                    toast({
-                      title: "功能开发中",
-                      description: "信息提取和保存功能正在开发中",
-                    });
-                    setReviewDialogOpen(false);
-                  }}
-                >
-                  确认并添加到病史
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
