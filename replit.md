@@ -99,6 +99,13 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 5, 2025: 综合平台文档创建和两步分析法系统优化
+  - 创建了完整的 PLATFORM_DOCUMENTATION.md 文档，包含完整的技术架构、功能模块、开发规范等
+  - 实现了革命性的两步分析法：先判断是否存在相互作用，再获取详细分析，提高分析准确性
+  - 添加了5级详细调试日志系统，提供完全透明的药物相互作用分析过程
+  - 增强了备用逻辑，特别针对阿米替林、丙泊酚等关键药物的相互作用识别
+  - 优化了前端空状态显示，提供更友好的"未查询到已知相互作用"提示
+  - 系统现在能够处理Gemini API配额限制，自动降级到基于规则的分析
 - July 5, 2025: Revolutionary Interactive Drug Interaction Deep Analysis System
   - Transformed static drug interaction alerts into clickable, interactive decision support tools
   - Added AI-powered deep analysis modal with comprehensive pharmacological insights
