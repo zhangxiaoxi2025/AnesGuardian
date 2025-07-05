@@ -1,8 +1,25 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import multer from "multer";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
 import { AgentOrchestrator } from "./services/agents";
+import { processMedicalRecord } from "./services/medical-record-processor";
+
+// 配置multer用于文件上传
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB限制
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('只支持图片文件'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Patient routes
@@ -337,6 +354,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Clinical guidelines search error:', error);
       res.status(500).json({ message: "临床指南搜索服务暂时不可用" });
+    }
+  });
+
+  // Medical Record Upload and Processing endpoint
+  app.post("/api/records/upload", upload.single('image'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "请选择一个图片文件" });
+      }
+
+      console.log('📸 收到病历照片上传请求，文件大小:', req.file.size);
+      
+      const result = await processMedicalRecord(req.file.buffer);
+      
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: result.error || "处理失败",
+          success: false 
+        });
+      }
+
+      res.json(result);
+    } catch (error) {
+      console.error('❌ 病历处理失败:', error);
+      res.status(500).json({ 
+        message: "病历处理服务暂时不可用",
+        success: false 
+      });
     }
   });
 
