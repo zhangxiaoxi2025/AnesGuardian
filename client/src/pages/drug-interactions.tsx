@@ -379,44 +379,58 @@ export default function DrugInteractions() {
                     </h3>
                     
                     <div className="grid gap-3">
-                      {interactions.map((interaction: DrugInteraction) => (
-                        <Card 
-                          key={interaction.id} 
-                          className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border hover:border-blue-400 hover:shadow-md group"
-                          onClick={() => handleInteractionClick(interaction)}
-                        >
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-medium text-gray-900 dark:text-gray-100">
-                                {(interaction.drugs || []).join(' 与 ')}
-                              </h4>
-                              {getSeverityBadge(interaction.severity)}
-                            </div>
-                            <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Eye className="w-4 h-4 text-blue-500" />
-                              <span className="text-xs text-blue-500 font-medium">查看详情</span>
-                            </div>
+                      {interactions.length === 0 ? (
+                        <div className="text-center py-8 px-4">
+                          <div className="mx-auto w-16 h-16 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mb-4">
+                            <CheckCircle className="w-8 h-8 text-green-600 dark:text-green-400" />
                           </div>
-                          
-                          <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                            {interaction.description}
+                          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                            未查询到已知的相互作用
+                          </h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                            根据当前药物组合，未发现有临床意义的药物相互作用。但请仍需谨慎用药，密切观察患者状态。
                           </p>
-                          
-                          {Array.isArray(interaction.recommendations) && interaction.recommendations.length > 0 && (
-                            <div className="space-y-1">
-                              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">建议措施:</p>
-                              <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                                {interaction.recommendations.map((recommendation: string, index: number) => (
-                                  <li key={index} className="flex items-start gap-1">
-                                    <span className="text-blue-500">•</span>
-                                    {recommendation}
-                                  </li>
-                                ))}
-                              </ul>
+                        </div>
+                      ) : (
+                        interactions.map((interaction: DrugInteraction) => (
+                          <Card 
+                            key={interaction.id} 
+                            className="p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors border hover:border-blue-400 hover:shadow-md group"
+                            onClick={() => handleInteractionClick(interaction)}
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <h4 className="font-medium text-gray-900 dark:text-gray-100">
+                                  {(interaction.drugs || []).join(' 与 ')}
+                                </h4>
+                                {getSeverityBadge(interaction.severity)}
+                              </div>
+                              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Eye className="w-4 h-4 text-blue-500" />
+                                <span className="text-xs text-blue-500 font-medium">查看详情</span>
+                              </div>
                             </div>
-                          )}
-                        </Card>
-                      ))}
+                            
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                              {interaction.description}
+                            </p>
+                            
+                            {Array.isArray(interaction.recommendations) && interaction.recommendations.length > 0 && (
+                              <div className="space-y-1">
+                                <p className="text-xs font-medium text-gray-700 dark:text-gray-300">建议措施:</p>
+                                <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
+                                  {interaction.recommendations.map((recommendation: string, index: number) => (
+                                    <li key={index} className="flex items-start gap-1">
+                                      <span className="text-blue-500">•</span>
+                                      {recommendation}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </Card>
+                        ))
+                      )}
                     </div>
                   </div>
                 );

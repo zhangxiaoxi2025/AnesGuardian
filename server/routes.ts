@@ -289,12 +289,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { drugs } = req.body;
       
+      // 日志1：打印从前端接收到的原始药物列表
+      console.log('🔍 [DEBUG] 日志1 - 从前端接收到的原始药物列表:', JSON.stringify(drugs, null, 2));
+      
       if (!drugs || !Array.isArray(drugs) || drugs.length < 2) {
         return res.status(400).json({ message: "至少需要2种药物进行交互分析" });
       }
 
+      // 日志2：从数据库查询药物对象
+      const { DrugService } = await import('./services/drug-service');
+      const drugObjects = [];
+      for (const drugName of drugs) {
+        const drugObj = await DrugService.getDrugByName(drugName);
+        drugObjects.push(drugObj);
+      }
+      console.log('🔍 [DEBUG] 日志2 - 从数据库查询到的完整药物对象:', JSON.stringify(drugObjects, null, 2));
+
       const { analyzeDrugInteractions } = await import('./services/gemini');
-      const result = await analyzeDrugInteractions(drugs);
+      const result = await analyzeDrugInteractions(drugs, drugObjects);
+
+      // 日志5：打印最终准备返回给前端的JSON数据
+      console.log('🔍 [DEBUG] 日志5 - 最终返回给前端的JSON数据:', JSON.stringify(result, null, 2));
 
       // 确保返回正确的数据结构
       res.json(result);

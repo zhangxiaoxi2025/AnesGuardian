@@ -121,46 +121,53 @@ Provide evidence-based recommendations for each risk factor.`;
   }
 }
 
-export async function analyzeDrugInteractions(medications: string[], anestheticDrugs: string[] = []): Promise<any> {
+export async function analyzeDrugInteractions(medications: string[], drugObjects: any[] = []): Promise<any> {
   try {
-    const allDrugs = [...medications, ...anestheticDrugs];
-    const prompt = `You are a clinical pharmacologist AI agent. Analyze potential drug interactions between the patient's medications and common anesthetic drugs.
-
-Patient Medications: ${medications.join(', ')}
-Common Anesthetic Drugs: Propofol, Midazolam, Fentanyl, Sevoflurane, Rocuronium, Neostigmine
-
-Provide drug interaction analysis in JSON format:
+    // 日志3：打印即将发送给Gemini AI的完整提示
+    console.log('🔍 [DEBUG] 日志3 - 开始两步分析法');
+    console.log('🔍 [DEBUG] 分析的药物列表:', medications);
+    
+    const interactions = [];
+    
+    // 常见麻醉药物列表
+    const anesthetics = ['丙泊酚', '咪达唑仑', '芬太尼', '七氟烷', '罗库溴铵', '新斯的明'];
+    
+    // 对每种患者药物与每种麻醉药物进行两步分析
+    for (const patientMed of medications) {
+      for (const anesthetic of anesthetics) {
+        // 第一步：判断是否存在相互作用
+        const judgePrompt = `在临床麻醉中，'${patientMed}'与'${anesthetic}'之间是否存在有临床意义的药物相互作用？请只回答'是'或'否'。`;
+        
+        console.log(`🔍 [DEBUG] 日志3A - 判断提示: ${judgePrompt}`);
+        
+        const judgeResponse = await genAI.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: judgePrompt
+        });
+        
+        const hasInteraction = judgeResponse.text?.trim().includes('是') || judgeResponse.text?.trim().includes('存在');
+        
+        console.log(`🔍 [DEBUG] 日志4A - 判断结果: ${judgeResponse.text?.trim()}, 解析为: ${hasInteraction}`);
+        
+        if (hasInteraction) {
+          // 第二步：获取详细分析
+          const detailPrompt = `请详细分析'${patientMed}'与'${anesthetic}'之间的药物相互作用，以JSON格式返回：
 {
-  "interactions": [
-    {
-      "id": "unique_id",
-      "drugs": ["drug1", "drug2"],
-      "severity": "minor|moderate|major",
-      "description": "detailed mechanism and effect",
-      "recommendations": ["specific recommendation1", "specific recommendation2"]
-    }
-  ],
-  "monitoringRecommendations": ["monitoring point1", "monitoring point2"]
-}
+  "id": "interaction_${patientMed}_${anesthetic}",
+  "drugs": ["${patientMed}", "${anesthetic}"],
+  "severity": "minor|moderate|major",
+  "description": "详细描述相互作用机制和临床表现",
+  "recommendations": ["具体建议1", "具体建议2"]
+}`;
 
-Focus on clinically significant interactions that could affect:
-1. Cardiovascular stability
-2. Respiratory function
-3. Bleeding risk
-4. Drug metabolism
-5. Recovery time`;
-
-    const response = await genAI.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: prompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: "object",
-          properties: {
-            interactions: {
-              type: "array",
-              items: {
+          console.log(`🔍 [DEBUG] 日志3B - 详细分析提示: ${detailPrompt}`);
+          
+          const detailResponse = await genAI.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: detailPrompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
                 type: "object",
                 properties: {
                   id: { type: "string" },
@@ -170,44 +177,181 @@ Focus on clinically significant interactions that could affect:
                   recommendations: { type: "array", items: { type: "string" } }
                 }
               }
-            },
-            monitoringRecommendations: { type: "array", items: { type: "string" } }
+            }
+          });
+          
+          console.log(`🔍 [DEBUG] 日志4B - 详细分析结果: ${detailResponse.text}`);
+          
+          try {
+            const interactionDetail = JSON.parse(detailResponse.text || '{}');
+            if (interactionDetail.id) {
+              interactions.push(interactionDetail);
+            }
+          } catch (parseError) {
+            console.error('JSON解析错误:', parseError);
+            // 提供备用结构
+            interactions.push({
+              id: `interaction_${patientMed}_${anesthetic}`,
+              drugs: [patientMed, anesthetic],
+              severity: "moderate",
+              description: `${patientMed}与${anesthetic}存在临床相互作用，需要关注`,
+              recommendations: ["密切监测患者状态", "考虑剂量调整"]
+            });
           }
         }
       }
-    });
+    }
+    
+    // 添加患者药物之间的相互作用分析
+    for (let i = 0; i < medications.length; i++) {
+      for (let j = i + 1; j < medications.length; j++) {
+        const med1 = medications[i];
+        const med2 = medications[j];
+        
+        const judgePrompt = `在临床中，'${med1}'与'${med2}'之间是否存在有临床意义的药物相互作用？请只回答'是'或'否'。`;
+        
+        console.log(`🔍 [DEBUG] 日志3C - 患者药物间判断: ${judgePrompt}`);
+        
+        const judgeResponse = await genAI.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: judgePrompt
+        });
+        
+        const hasInteraction = judgeResponse.text?.trim().includes('是') || judgeResponse.text?.trim().includes('存在');
+        
+        console.log(`🔍 [DEBUG] 日志4C - 患者药物间判断结果: ${judgeResponse.text?.trim()}, 解析为: ${hasInteraction}`);
+        
+        if (hasInteraction) {
+          const detailPrompt = `请详细分析'${med1}'与'${med2}'之间的药物相互作用，以JSON格式返回：
+{
+  "id": "interaction_${med1}_${med2}",
+  "drugs": ["${med1}", "${med2}"],
+  "severity": "minor|moderate|major",
+  "description": "详细描述相互作用机制和临床表现",
+  "recommendations": ["具体建议1", "具体建议2"]
+}`;
 
-    return JSON.parse(response.text || '{}');
+          const detailResponse = await genAI.models.generateContent({
+            model: "gemini-1.5-flash",
+            contents: detailPrompt,
+            config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                type: "object",
+                properties: {
+                  id: { type: "string" },
+                  drugs: { type: "array", items: { type: "string" } },
+                  severity: { type: "string" },
+                  description: { type: "string" },
+                  recommendations: { type: "array", items: { type: "string" } }
+                }
+              }
+            }
+          });
+          
+          try {
+            const interactionDetail = JSON.parse(detailResponse.text || '{}');
+            if (interactionDetail.id) {
+              interactions.push(interactionDetail);
+            }
+          } catch (parseError) {
+            console.error('JSON解析错误:', parseError);
+            interactions.push({
+              id: `interaction_${med1}_${med2}`,
+              drugs: [med1, med2],
+              severity: "moderate",
+              description: `${med1}与${med2}存在临床相互作用，需要关注`,
+              recommendations: ["密切监测患者状态", "考虑剂量调整"]
+            });
+          }
+        }
+      }
+    }
+    
+    const result = {
+      interactions,
+      monitoringRecommendations: [
+        "密切监测生命体征",
+        "观察药物不良反应",
+        "准备应急药物",
+        "调整麻醉深度监控"
+      ]
+    };
+    
+    console.log(`🔍 [DEBUG] 日志4 - 最终分析结果: ${JSON.stringify(result, null, 2)}`);
+    
+    return result;
   } catch (error) {
     console.error('Drug interaction analysis failed:', error);
     
-    // Return fallback drug interaction analysis
+    // 更强大的备用逻辑 - 基于药物名称识别已知相互作用
     const interactions = [];
     
-    // Check for common high-risk interactions
-    if (medications.some(med => med.toLowerCase().includes('warfarin'))) {
-      interactions.push({
-        id: "warfarin_interaction",
-        drugs: ["华法林", "麻醉药物"],
-        severity: "major",
-        description: "华法林与某些麻醉药物可能增加出血风险",
-        recommendations: ["术前评估凝血功能", "考虑停药或桥接治疗"]
-      });
-    }
+    // 已知的高风险药物相互作用配置
+    const knownInteractions = [
+      { 
+        keywords: ['华法林', 'warfarin'], 
+        anesthetics: ['丙泊酚', '七氟烷'], 
+        severity: 'major', 
+        description: '华法林与麻醉药物可能增加出血风险',
+        recommendations: ['术前评估凝血功能', '考虑停药或桥接治疗', '监测凝血指标']
+      },
+      { 
+        keywords: ['阿米替林', 'amitriptyline', '三环'], 
+        anesthetics: ['丙泊酚', '咪达唑仑'], 
+        severity: 'major', 
+        description: '三环抗抑郁药与静脉麻醉药可能导致心律失常和严重低血压',
+        recommendations: ['术前心电图检查', '备用血管活性药物', '密切监测血压和心律', '考虑延长术后监护']
+      },
+      { 
+        keywords: ['地高辛', 'digoxin'], 
+        anesthetics: ['罗库溴铵', '新斯的明'], 
+        severity: 'moderate', 
+        description: '地高辛与肌松药相互作用可能影响心律',
+        recommendations: ['术中监测心电图', '谨慎使用肌松拮抗剂', '调整肌松药剂量']
+      },
+      { 
+        keywords: ['单胺氧化酶', 'maoi'], 
+        anesthetics: ['芬太尼', '哌替啶'], 
+        severity: 'major', 
+        description: 'MAO抑制剂与阿片类药物可能导致高热综合征',
+        recommendations: ['避免使用哌替啶', '选择其他镇痛药', '密切监测体温']
+      }
+    ];
     
-    if (medications.some(med => med.toLowerCase().includes('digoxin'))) {
-      interactions.push({
-        id: "digoxin_interaction", 
-        drugs: ["地高辛", "肌松药"],
-        severity: "moderate",
-        description: "地高辛可能影响肌松药效果",
-        recommendations: ["监测心律", "调整肌松药剂量"]
+    // 检查每种患者药物
+    medications.forEach(med => {
+      const medLower = med.toLowerCase();
+      
+      knownInteractions.forEach(interaction => {
+        const hasKeyword = interaction.keywords.some(keyword => 
+          medLower.includes(keyword.toLowerCase()) || med.includes(keyword)
+        );
+        
+        if (hasKeyword) {
+          interaction.anesthetics.forEach(anesthetic => {
+            interactions.push({
+              id: `known_interaction_${med}_${anesthetic}`,
+              drugs: [med, anesthetic],
+              severity: interaction.severity,
+              description: interaction.description,
+              recommendations: interaction.recommendations
+            });
+          });
+        }
       });
-    }
+    });
+    
+    console.log(`🔍 [DEBUG] 备用逻辑 - 基于已知配置找到 ${interactions.length} 个相互作用`);
     
     return {
       interactions,
-      monitoringRecommendations: ["术前停用非必需药物", "监测药物浓度"]
+      monitoringRecommendations: [
+        "密切监测生命体征",
+        "观察药物不良反应", 
+        "准备应急药物",
+        "调整麻醉深度监控"
+      ]
     };
   }
 }
