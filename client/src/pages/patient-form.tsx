@@ -42,7 +42,7 @@ export default function PatientForm() {
       age: 0,
       gender: 'male',
       surgeryType: '',
-      asaClass: 'ASA I',
+      asaClass: '一级',
       medicalHistoryText: '',
       medicationsText: '',
       allergiesText: '',
@@ -294,11 +294,11 @@ export default function PatientForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="ASA I">ASA I (健康患者)</SelectItem>
-                          <SelectItem value="ASA II">ASA II (轻度系统性疾病)</SelectItem>
-                          <SelectItem value="ASA III">ASA III (严重系统性疾病)</SelectItem>
-                          <SelectItem value="ASA IV">ASA IV (严重系统性疾病，生命危险)</SelectItem>
-                          <SelectItem value="ASA V">ASA V (危重患者)</SelectItem>
+                          <SelectItem value="ASA I">一级 (健康患者)</SelectItem>
+                          <SelectItem value="ASA II">二级 (轻度系统性疾病)</SelectItem>
+                          <SelectItem value="ASA III">三级 (严重系统性疾病)</SelectItem>
+                          <SelectItem value="ASA IV">四级 (严重系统性疾病，生命危险)</SelectItem>
+                          <SelectItem value="ASA V">五级 (危重患者)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
