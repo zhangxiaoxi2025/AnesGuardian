@@ -577,35 +577,74 @@ export async function analyzeDrugInteractionDeep(drugA: string, drugB: string): 
       }
     });
 
-    // 直接解析JSON响应
-    const jsonResponse = JSON.parse(response.text || '{}');
+    // 解析AI响应文本
+    let rawText = response.text || '';
+    console.log('🔍 原始AI响应:', rawText);
     
-    // 将新格式转换为前端期望的格式
-    const formattedResponse = {
-      mechanism: `### 1. 风险等级与核心摘要
-- **风险等级**: ${jsonResponse.riskLevel}
-- **核心风险摘要**: ${jsonResponse.coreRiskSummary}
-
-### 2. 药理学相互作用机制
-- **药效学（PD）**: ${jsonResponse.pharmacology?.pharmacodynamics}
-- **药代学（PK）**: ${jsonResponse.pharmacology?.pharmacokinetics}`,
+    // 提取JSON内容 - 处理markdown代码块包装
+    let jsonString = rawText;
+    
+    // 如果响应被包装在```json...```中，提取JSON部分
+    const jsonBlockMatch = rawText.match(/```json\s*([\s\S]*?)\s*```/);
+    if (jsonBlockMatch) {
+      jsonString = jsonBlockMatch[1].trim();
+      console.log('📦 提取的JSON字符串:', jsonString);
+    } else if (rawText.match(/```\s*([\s\S]*?)\s*```/)) {
+      // 处理普通代码块```...```
+      const blockMatch = rawText.match(/```\s*([\s\S]*?)\s*```/);
+      if (blockMatch) {
+        jsonString = blockMatch[1].trim();
+        console.log('📦 提取的代码块内容:', jsonString);
+      }
+    }
+    
+    // 尝试解析JSON
+    let parsedData;
+    try {
+      parsedData = JSON.parse(jsonString);
+      console.log('✅ JSON解析成功:', parsedData);
+    } catch (parseError) {
+      console.log('❌ JSON解析失败，尝试清理数据:', parseError);
       
-      consequences: `### 3. 可能的临床后果与风险
-- **中枢神经系统**: ${jsonResponse.clinicalConsequences?.cns}
-- **心血管系统**: ${jsonResponse.clinicalConsequences?.cardiovascular}
-- **其他**: ${jsonResponse.clinicalConsequences?.other}`,
+      // 如果直接解析失败，尝试清理常见的markdown格式
+      let cleanedString = jsonString
+        .replace(/^```json\s*/i, '')
+        .replace(/\s*```$/, '')
+        .replace(/^```\s*/, '')
+        .replace(/\s*```$/, '')
+        .trim();
+      
+      try {
+        parsedData = JSON.parse(cleanedString);
+        console.log('✅ 清理后JSON解析成功:', parsedData);
+      } catch (secondError) {
+        console.log('❌ 清理后仍然解析失败，使用备用分析');
+        throw new Error('无法解析AI响应为JSON格式');
+      }
+    }
+    
+    // 返回解析后的结构化对象
+    const structuredResponse = {
+      mechanism: parsedData.riskLevel && parsedData.coreRiskSummary ? 
+        `**风险等级**: ${parsedData.riskLevel}\n**核心摘要**: ${parsedData.coreRiskSummary}\n\n**药理机制**: ${parsedData.pharmacology?.pharmacodynamics || '暂无数据'}\n**代谢影响**: ${parsedData.pharmacology?.pharmacokinetics || '暂无数据'}` :
+        parsedData.mechanism || '暂无机制分析',
+      
+      consequences: parsedData.clinicalConsequences ? 
+        `**中枢神经**: ${parsedData.clinicalConsequences.cns || '暂无数据'}\n**心血管**: ${parsedData.clinicalConsequences.cardiovascular || '暂无数据'}\n**其他影响**: ${parsedData.clinicalConsequences.other || '暂无数据'}` :
+        parsedData.consequences || '暂无后果分析',
       
       recommendations: {
-        monitoring: jsonResponse.recommendations?.monitoring,
-        dose_adjustment: jsonResponse.recommendations?.doseAdjustment,
-        alternatives: jsonResponse.recommendations?.alternatives,
-        emergencyPlan: jsonResponse.recommendations?.emergencyPlan
+        monitoring: parsedData.recommendations?.monitoring || '密切观察患者生命体征',
+        dose_adjustment: parsedData.recommendations?.doseAdjustment || '根据临床情况调整剂量',
+        alternatives: parsedData.recommendations?.alternatives || '考虑替代药物方案',
+        emergencyPlan: parsedData.recommendations?.emergencyPlan || '准备应急处理措施'
       },
       
-      fullAnalysis: `基于AI的${drugA}与${drugB}相互作用完整JSON结构化分析`
+      fullAnalysis: `${drugA}与${drugB}的完整相互作用分析已完成`
     };
 
-    return formattedResponse;
+    console.log('🎯 返回给前端的结构化响应:', structuredResponse);
+    return structuredResponse;
   } catch (error) {
     console.error('Deep drug interaction analysis failed:', error);
     
