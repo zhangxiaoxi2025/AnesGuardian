@@ -99,6 +99,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 5, 2025: Revolutionary Interactive Drug Interaction Deep Analysis System
+  - Transformed static drug interaction alerts into clickable, interactive decision support tools
+  - Added AI-powered deep analysis modal with comprehensive pharmacological insights
+  - Created new API endpoint /api/interactions/explain for drug interaction analysis
+  - Integrated Gemini AI to provide detailed mechanism analysis, clinical consequences, and monitoring recommendations
+  - Enhanced user experience with Eye icons, loading states, and professional report display
+  - Implemented structured JSON response format for consistent AI analysis output
+  - Added hover effects and visual feedback for improved interactivity
+  - Built comprehensive error handling and fallback mechanisms for reliable operation
 - July 5, 2025: Complete Patient Form Redesign with Integrated AI Medical Record Processing
   - Completely restructured "添加新患者" workflow with two-section design
   - Upper section: Traditional manual patient information input (name, age, gender, surgery type, etc.)
