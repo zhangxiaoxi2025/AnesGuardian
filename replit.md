@@ -105,6 +105,7 @@ Preferred communication style: Simple, everyday language.
   - Created dedicated import script (scripts/import-drugs.ts) for batch drug data insertion
   - Enhanced search algorithm to support both Chinese names and English aliases with PostgreSQL full-text search
   - Fixed critical runtime error: Changed `interaction.drugs.join(' 与 ')` to `(interaction.drugs || []).join(' 与 ')` for null safety
+  - Fixed runtime error: Added `Array.isArray(interaction.recommendations) &&` safety check before accessing recommendations.length
   - Added comprehensive drug categories: IV anesthetics, inhalation anesthetics, opioids, muscle relaxants, local anesthetics, vasopressors, sedatives, anticholinergics, antiemetics, steroids
   - Included detailed preoperative drug cessation guidelines for each medication category
   - System now supports robust drug interaction analysis with extensive medical knowledge base

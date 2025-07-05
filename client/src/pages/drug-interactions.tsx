@@ -343,7 +343,7 @@ export default function DrugInteractions() {
                             {interaction.description}
                           </p>
                           
-                          {interaction.recommendations.length > 0 && (
+                          {Array.isArray(interaction.recommendations) && interaction.recommendations.length > 0 && (
                             <div className="space-y-1">
                               <p className="text-xs font-medium text-gray-700 dark:text-gray-300">建议措施:</p>
                               <ul className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
