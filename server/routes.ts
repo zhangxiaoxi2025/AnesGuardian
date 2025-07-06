@@ -33,15 +33,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/patients", async (req, res) => {
     try {
+      console.log("接收到患者数据:", JSON.stringify(req.body, null, 2));
       const result = insertPatientSchema.safeParse(req.body);
       if (!result.success) {
+        console.error("患者数据验证失败:", result.error.issues);
         return res.status(400).json({ message: "Invalid patient data", errors: result.error.issues });
       }
 
+      console.log("验证通过，准备创建患者:", result.data);
       const patient = await storage.createPatient(result.data);
+      console.log("患者创建成功:", patient);
       res.status(201).json(patient);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create patient" });
+      console.error("创建患者时发生错误:", error);
+      res.status(500).json({ message: "Failed to create patient", error: error.message });
     }
   });
 

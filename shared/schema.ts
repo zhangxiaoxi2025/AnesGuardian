@@ -7,7 +7,7 @@ export const patients = pgTable("patients", {
   name: text("name").notNull(),
   age: integer("age").notNull(),
   gender: text("gender").notNull(),
-  surgeryType: text("surgery_type").notNull(),
+  surgeryType: text("surgery_type").default(""),
   asaClass: text("asa_class").notNull(),
   medicalHistory: json("medical_history").$type<string[]>().default([]).notNull(),
   medications: json("medications").$type<string[]>().default([]).notNull(),
@@ -57,6 +57,8 @@ export const drugs = pgTable("drugs", {
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
   createdAt: true,
+}).extend({
+  surgeryType: z.string().optional().default(""),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
