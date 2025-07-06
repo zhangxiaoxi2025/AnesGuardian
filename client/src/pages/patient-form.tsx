@@ -73,7 +73,7 @@ export default function PatientForm() {
 
       const response = await apiRequest('/api/patients', {
         method: 'POST',
-        body: JSON.stringify(patientData),
+        data: patientData,
       });
       return response.json();
     },
