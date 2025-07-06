@@ -1,0 +1,69 @@
+Hello Agent, I need your help to implement a critical feature: analyzing uploaded medical record images. The previous attempt resulted in a "404 Not Found" error, likely because the code was split incorrectly.
+
+Please follow these steps precisely to build this feature correctly.
+
+**Step 1: Install Required Packages**
+
+First, please ensure the necessary packages for file handling are installed. Run this command in the shell:
+`npm install multer @types/multer`
+
+**Step 2: Create the Image Processing Route and Logic**
+
+I want to consolidate all the image processing logic directly within the `server/routes.ts` file to avoid errors.
+
+1.  **File to Modify:** `server/routes.ts`.
+2.  **Delete Old Code:** Before adding new code, please find and delete any existing route handlers for `/api/medical-records/process` to prevent conflicts.
+3.  **Add New Code:** At the end of the `server/routes.ts` file (but before the final export), please add the complete code block provided below. This block includes all necessary imports, `multer` setup, and the route handler itself.
+
+```typescript
+// --- Start of Block to Add ---
+
+import multer from 'multer';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+// Setup for image upload and AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const upload = multer({ storage: multer.memoryStorage() });
+
+// Helper function to convert buffer to a part for Gemini
+function fileToGenerativePart(buffer: Buffer, mimeType: string) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType,
+    },
+  };
+}
+
+// The new route handler for processing medical record images
+app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "No image file was uploaded." });
+        }
+
+        console.log("Received image for processing:", req.file.originalname);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
+
+        const textPrompt = "你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并严格按照下面的JSON格式返回以下信息，不要包含任何markdown标记：1. 'summary': 对病史的简要总结，包含主要诊断和症状。2. 'medications': 一个包含所有当前用药名称的字符串数组。请确保提取的信息准确无误。";
+        
+        const promptParts = [textPrompt, imagePart];
+
+        const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+        const responseText = result.response.text();
+        
+        console.log("AI Raw Response:", responseText);
+        
+        const data = JSON.parse(responseText);
+
+        res.status(200).json(data);
+
+    } catch (error) {
+        console.error("Image processing failed:", error);
+        res.status(500).json({ message: "AI image recognition failed." });
+    }
+});
+
+// --- End of Block to Add ---

@@ -98,8 +98,16 @@ export default function PatientForm() {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('medicalRecord', file);
-      
-      const response = await apiRequest('POST', '/api/medical-records/process', formData);
+
+      const response = await fetch('/api/medical-records/process', {
+          method: 'POST',
+          body: formData,
+      });
+
+      if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred during processing.' }));
+          throw new Error(errorData.message);
+      }
       return response.json();
     },
     onSuccess: (data) => {

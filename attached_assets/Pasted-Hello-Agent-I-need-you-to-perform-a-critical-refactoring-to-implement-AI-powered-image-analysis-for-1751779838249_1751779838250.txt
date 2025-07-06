@@ -1,0 +1,63 @@
+Hello Agent, I need you to perform a critical refactoring to implement AI-powered image analysis for medical records. The previous attempts failed with a 404 error. Please follow these instructions exactly.
+
+**Overall Goal:** Implement a feature where a user uploads a medical record image, and the AI analyzes it to extract a summary and a list of medications.
+
+**Step 1: Install Dependencies**
+
+First, run this command in the shell to install the necessary package for file uploads:
+`npm install multer @types/multer`
+
+**Step 2: Refactor the Backend Route**
+
+You will now modify the `server/routes.ts` file. All logic for this feature should be in this single file.
+
+1.  **Open `server/routes.ts`**.
+2.  **Delete any existing code** for the `/api/medical-records/process` endpoint to avoid conflicts.
+3.  **Add the following complete code block** to the end of the file, before the final export statement. This block contains everything needed for the backend part of the feature.
+
+```typescript
+// --- Block for Image Processing Route ---
+
+import multer from 'multer';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const upload = multer({ storage: multer.memoryStorage() });
+
+function fileToGenerativePart(buffer: Buffer, mimeType: string) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType,
+    },
+  };
+}
+
+app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "No image file was uploaded." });
+        }
+        console.log("Received image for processing:", req.file.originalname);
+
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
+
+        const textPrompt = "You are a professional medical information entry specialist. Analyze this medical record image carefully and return the following information in a strict JSON format, without any markdown formatting: 1. 'summary': A brief summary of the medical history, including main diagnoses and symptoms. 2. 'medications': An array of strings containing all current medication names. Ensure the extracted information is accurate.";
+        
+        const promptParts = [textPrompt, imagePart];
+
+        const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+        const responseText = result.response.text();
+        
+        console.log("AI Raw Response:", responseText);
+        
+        const data = JSON.parse(responseText);
+        res.status(200).json(data);
+    } catch (error) {
+        console.error("Image processing failed:", error);
+        res.status(500).json({ message: "AI image recognition failed." });
+    }
+});
+
+// --- End of Block ---

@@ -4,22 +4,21 @@ import multer from "multer";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
 import { AgentOrchestrator } from "./services/agents";
-import { processMedicalRecord, processImageWithAI } from "./services/medical-record-processor";
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// 配置multer用于文件上传
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB限制
-  },
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('只支持图片文件'));
-    }
-  }
-});
+// --- Block for Image Processing Route ---
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const upload = multer({ storage: multer.memoryStorage() });
+
+function fileToGenerativePart(buffer: Buffer, mimeType: string) {
+  return {
+    inlineData: {
+      data: buffer.toString("base64"),
+      mimeType,
+    },
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Patient routes
@@ -432,70 +431,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Medical Record Processing endpoint - AI-powered image analysis
   app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
     try {
-      console.log('🏥 医疗记录处理端点被调用');
-      
-      if (!req.file) {
-        console.log('❌ 未收到文件');
-        return res.status(400).json({ 
-          message: "请选择一个图片文件",
-          success: false 
-        });
-      }
+        if (!req.file) {
+            return res.status(400).json({ message: "No image file was uploaded." });
+        }
+        console.log("Received image for processing:", req.file.originalname);
 
-      console.log('📸 收到病历照片上传请求');
-      console.log('📄 文件大小:', req.file.size, '字节');
-      console.log('📄 文件类型:', req.file.mimetype);
-      
-      // 验证文件类型
-      if (!req.file.mimetype.startsWith('image/')) {
-        return res.status(400).json({
-          message: "只支持图片文件格式",
-          success: false
-        });
-      }
-      
-      // 使用AI进行多模态图像分析
-      console.log('🤖 开始AI图像分析...');
-      const result = await processImageWithAI(req.file.buffer);
-      
-      if (!result.success) {
-        return res.status(400).json({
-          message: result.error || "图像分析失败",
-          success: false
-        });
-      }
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+        const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
 
-      console.log('✅ AI分析完成，返回结果');
-      
-      // 返回与前端期望格式匹配的数据
-      const responseData = {
-        summary: result.summary,
-        medications: result.medications,
-        success: true
-      };
-      
-      res.json(responseData);
-      
+        const textPrompt = "You are a professional medical information entry specialist. Analyze this medical record image carefully and return the following information in a strict JSON format, without any markdown formatting: 1. 'summary': A brief summary of the medical history, including main diagnoses and symptoms. 2. 'medications': An array of strings containing all current medication names. Ensure the extracted information is accurate.";
+        
+        const promptParts = [textPrompt, imagePart];
+
+        const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+        const responseText = result.response.text();
+        
+        console.log("AI Raw Response:", responseText);
+        
+        const data = JSON.parse(responseText);
+        res.status(200).json(data);
     } catch (error) {
-      console.error('❌ 病历处理失败:', error);
-      
-      // 如果AI处理失败，返回友好的错误信息
-      const errorMessage = error instanceof Error ? error.message : "未知错误";
-      
-      if (errorMessage.includes('quota') || errorMessage.includes('429')) {
-        res.status(429).json({
-          message: "AI服务暂时繁忙，请稍后重试",
-          success: false
-        });
-      } else {
-        res.status(500).json({ 
-          message: "图像分析服务暂时不可用，请重试",
-          success: false 
-        });
-      }
+        console.error("Image processing failed:", error);
+        res.status(500).json({ message: "AI image recognition failed." });
     }
   });
 
