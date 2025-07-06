@@ -71,10 +71,7 @@ export default function PatientForm() {
         labResults: {},
       };
 
-      const response = await apiRequest('/api/patients', {
-        method: 'POST',
-        data: patientData,
-      });
+      const response = await apiRequest('POST', '/api/patients', patientData);
       return response.json();
     },
     onSuccess: () => {
