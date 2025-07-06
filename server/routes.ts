@@ -135,6 +135,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Reset assessment route
+  app.post("/api/patients/:id/reset-assessment", async (req, res) => {
+    try {
+      const patientId = parseInt(req.params.id);
+      
+      // Check if patient exists
+      const patient = await storage.getPatient(patientId);
+      if (!patient) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+
+      // Find existing assessment
+      let assessment = await storage.getAssessmentByPatientId(patientId);
+      
+      if (assessment) {
+        // Reset existing assessment
+        assessment = await storage.updateAssessment(assessment.id, {
+          status: 'pending',
+          overallRisk: 'low',
+          riskFactors: [],
+          drugInteractions: [],
+          clinicalGuidelines: [],
+          recommendations: [],
+          agentStatus: {}
+        });
+        
+        console.log(`Assessment ${assessment.id} reset for patient ${patientId}`);
+        
+        // Start new agent orchestration
+        const orchestrator = new AgentOrchestrator(assessment.id);
+        orchestrator.runAssessment(patientId).catch(console.error);
+        
+        res.json({ message: "Assessment reset and restarted successfully", assessmentId: assessment.id });
+      } else {
+        // Create new assessment if none exists
+        assessment = await storage.createAssessment({
+          patientId,
+          status: 'pending',
+          overallRisk: 'low',
+          riskFactors: [],
+          drugInteractions: [],
+          clinicalGuidelines: [],
+          recommendations: [],
+          agentStatus: {}
+        });
+        
+        console.log(`New assessment ${assessment.id} created for patient ${patientId}`);
+        
+        // Start agent orchestration
+        const orchestrator = new AgentOrchestrator(assessment.id);
+        orchestrator.runAssessment(patientId).catch(console.error);
+        
+        res.json({ message: "New assessment started successfully", assessmentId: assessment.id });
+      }
+    } catch (error) {
+      console.error("Reset assessment error:", error);
+      res.status(500).json({ message: "Failed to reset assessment" });
+    }
+  });
+
   // Drug routes
   app.get("/api/drugs/search", async (req, res) => {
     try {

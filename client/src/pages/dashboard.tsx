@@ -70,6 +70,7 @@ export default function Dashboard() {
       return response.json();
     },
     enabled: !!currentPatientId, // Only run when currentPatientId is truthy
+    refetchInterval: 3000, // Refetch every 3 seconds for real-time updates
   });
 
   // Debug logs
@@ -214,6 +215,7 @@ export default function Dashboard() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assessment', currentPatientId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/patients/${currentPatientId}/assessment`] });
       toast({
         title: "评估已重置",
         description: "正在重新开始评估过程...",
