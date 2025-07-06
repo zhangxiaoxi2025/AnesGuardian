@@ -76,8 +76,13 @@ export default function DrugInteractions() {
   const [analysisData, setAnalysisData] = useState<InteractionAnalysis | null>(null);
 
   const drugInteractionMutation = useMutation({
-    mutationFn: async (drugs: string[]) => {
-      const response = await fetch('/api/drug-interactions', {
+    mutationFn: async (drugNames: string[]) => {
+      console.log('🔍 前端: 开始药物相互作用分析...', drugNames);
+      
+      // 构造drugs数组，包含name字段
+      const drugs = drugNames.map(name => ({ name }));
+      
+      const response = await fetch('/api/interactions/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -85,30 +90,47 @@ export default function DrugInteractions() {
         body: JSON.stringify({ drugs }),
       });
       
+      console.log('📡 前端: 相互作用分析API响应状态:', response.status);
+      
       if (!response.ok) {
         throw new Error('Failed to check drug interactions');
       }
       
-      return response.json() as Promise<DrugInteractionResponse>;
+      const data = await response.json();
+      console.log('📊 前端: 相互作用分析结果:', data);
+      
+      return data as DrugInteractionResponse;
     },
   });
 
   // 深度分析mutation
   const analysisDeepDiveMutation = useMutation({
     mutationFn: async ({ drugA, drugB }: { drugA: string; drugB: string }) => {
+      console.log('🔍 前端: 开始深度相互作用分析...', { drugA, drugB });
+      
       const response = await fetch('/api/interactions/explain', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ drugA, drugB }),
+        body: JSON.stringify({ 
+          drugs: [drugA, drugB],
+          interaction: {
+            drugs: [drugA, drugB]
+          }
+        }),
       });
+      
+      console.log('📡 前端: 深度分析API响应状态:', response.status);
       
       if (!response.ok) {
         throw new Error('Failed to get interaction analysis');
       }
       
-      return response.json() as Promise<InteractionAnalysis>;
+      const data = await response.json();
+      console.log('📊 前端: 深度分析结果:', data);
+      
+      return data as InteractionAnalysis;
     },
     onSuccess: (data) => {
       setAnalysisData(data);
