@@ -106,7 +106,10 @@ export default function PatientForm() {
       setRecognitionStatus('success');
       
       // 将AI识别的信息填入表单
-      if (data.diagnoses && data.diagnoses.length > 0) {
+      if (data.summary && data.summary.trim()) {
+        form.setValue('medicalHistoryText', data.summary);
+      } else if (data.diagnoses && data.diagnoses.length > 0) {
+        // 兼容旧格式
         form.setValue('medicalHistoryText', data.diagnoses.join(', '));
       }
       

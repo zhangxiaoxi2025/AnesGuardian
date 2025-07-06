@@ -4,7 +4,7 @@ import multer from "multer";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
 import { AgentOrchestrator } from "./services/agents";
-import { processMedicalRecord } from "./services/medical-record-processor";
+import { processMedicalRecord, processImageWithAI } from "./services/medical-record-processor";
 
 // 配置multer用于文件上传
 const upload = multer({
@@ -432,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Medical Record Processing endpoint - expected by frontend
+  // Medical Record Processing endpoint - AI-powered image analysis
   app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
     try {
       console.log('🏥 医疗记录处理端点被调用');
@@ -445,28 +445,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      console.log('📸 收到病历照片上传请求，文件大小:', req.file.size, '字节');
+      console.log('📸 收到病历照片上传请求');
+      console.log('📄 文件大小:', req.file.size, '字节');
       console.log('📄 文件类型:', req.file.mimetype);
       
-      // 由于API配额限制，暂时返回模拟数据
-      console.log('⚠️ 由于API配额限制，返回模拟数据进行测试');
+      // 验证文件类型
+      if (!req.file.mimetype.startsWith('image/')) {
+        return res.status(400).json({
+          message: "只支持图片文件格式",
+          success: false
+        });
+      }
       
-      const mockResult = {
-        diagnoses: ['高血压', '2型糖尿病', '冠心病'],
-        medications: ['阿司匹林', '阿托伐他汀', '美托洛尔'],
-        rawText: '患者，男，65岁。主诉：胸痛。诊断：冠心病。拟行冠脉搭桥术。当前用药：阿司匹林100mg每日一次，阿托伐他汀20mg每晚一次，美托洛尔25mg每日两次。',
+      // 使用AI进行多模态图像分析
+      console.log('🤖 开始AI图像分析...');
+      const result = await processImageWithAI(req.file.buffer);
+      
+      if (!result.success) {
+        return res.status(400).json({
+          message: result.error || "图像分析失败",
+          success: false
+        });
+      }
+
+      console.log('✅ AI分析完成，返回结果');
+      
+      // 返回与前端期望格式匹配的数据
+      const responseData = {
+        summary: result.summary,
+        medications: result.medications,
         success: true
       };
-
-      console.log('✅ 返回模拟处理结果:', mockResult);
-      res.json(mockResult);
+      
+      res.json(responseData);
       
     } catch (error) {
       console.error('❌ 病历处理失败:', error);
-      res.status(500).json({ 
-        message: "病历处理服务暂时不可用",
-        success: false 
-      });
+      
+      // 如果AI处理失败，返回友好的错误信息
+      const errorMessage = error instanceof Error ? error.message : "未知错误";
+      
+      if (errorMessage.includes('quota') || errorMessage.includes('429')) {
+        res.status(429).json({
+          message: "AI服务暂时繁忙，请稍后重试",
+          success: false
+        });
+      } else {
+        res.status(500).json({ 
+          message: "图像分析服务暂时不可用，请重试",
+          success: false 
+        });
+      }
     }
   });
 

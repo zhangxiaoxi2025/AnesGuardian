@@ -5,11 +5,96 @@ import { GoogleGenAI } from "@google/genai";
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
 export interface ExtractedMedicalData {
-  diagnoses: string[];
+  summary: string;
   medications: string[];
-  rawText: string;
+  rawText?: string;
   success: boolean;
   error?: string;
+}
+
+// 新的多模态图像分析函数
+export async function processImageWithAI(imageBuffer: Buffer): Promise<ExtractedMedicalData> {
+  try {
+    console.log('🎯 开始使用Gemini多模态AI分析医疗记录图片...');
+    
+    // 将图片转换为base64格式
+    const base64Image = imageBuffer.toString('base64');
+    const mimeType = 'image/png'; // 默认PNG，也支持JPEG
+    
+    const prompt = `你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并以JSON格式返回以下信息：
+1. 'summary': 对病史的简要总结，包含主要诊断和症状
+2. 'medications': 一个包含所有当前用药名称的字符串数组
+
+请确保提取的信息准确无误。请严格按照以下JSON格式返回：
+{
+  "summary": "患者病史总结",
+  "medications": ["药物1", "药物2", "药物3"]
+}`;
+
+    console.log('🤖 发送图片到Gemini AI进行分析...');
+    
+    const response = await ai.models.generateContent({
+      model: "gemini-1.5-flash",
+      contents: [
+        {
+          role: "user",
+          parts: [
+            { text: prompt },
+            {
+              inlineData: {
+                data: base64Image,
+                mimeType: mimeType
+              }
+            }
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            summary: { type: "string" },
+            medications: { type: "array", items: { type: "string" } }
+          },
+          required: ["summary", "medications"]
+        }
+      }
+    });
+
+    const responseText = response.text || '{}';
+    console.log('📝 AI原始响应:', responseText);
+    
+    // 解析AI响应
+    let parsedResult;
+    try {
+      parsedResult = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('❌ JSON解析失败，尝试提取内容:', parseError);
+      // 如果直接解析失败，尝试提取可能的JSON
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        parsedResult = JSON.parse(jsonMatch[0]);
+      } else {
+        throw new Error('无法解析AI响应为有效JSON格式');
+      }
+    }
+    
+    console.log('✅ AI分析完成，结果:', parsedResult);
+    
+    return {
+      summary: parsedResult.summary || '无法提取病史总结',
+      medications: Array.isArray(parsedResult.medications) ? parsedResult.medications : [],
+      success: true
+    };
+    
+  } catch (error) {
+    console.error('❌ 多模态AI分析失败:', error);
+    
+    // 如果AI分析失败，返回备用OCR+AI的方式
+    console.log('🔄 尝试使用备用OCR+AI方式...');
+    return await processMedicalRecord(imageBuffer);
+  }
 }
 
 export async function processMedicalRecord(imageBuffer: Buffer): Promise<ExtractedMedicalData> {
