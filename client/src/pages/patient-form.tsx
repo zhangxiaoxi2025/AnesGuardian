@@ -99,10 +99,7 @@ export default function PatientForm() {
       const formData = new FormData();
       formData.append('medicalRecord', file);
       
-      const response = await apiRequest('/api/medical-records/process', {
-        method: 'POST',
-        body: formData,
-      });
+      const response = await apiRequest('POST', '/api/medical-records/process', formData);
       return response.json();
     },
     onSuccess: (data) => {

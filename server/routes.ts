@@ -340,21 +340,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Drug Interaction Deep Analysis endpoint
   app.post("/api/interactions/explain", async (req, res) => {
-    try {
       const { drugA, drugB } = req.body;
-      
+
       if (!drugA || !drugB || typeof drugA !== 'string' || typeof drugB !== 'string') {
-        return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
+          return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
       }
 
-      const { analyzeDrugInteractionDeep } = await import('./services/gemini');
-      const analysis = await analyzeDrugInteractionDeep(drugA, drugB);
+      try {
+          // 统一调用我们唯一的分析函数
+          const { analyzeDrugInteractions } = await import('./services/gemini');
+          // 注意这里的参数格式：一个字符串数组和一个空数组
+          const result = await analyzeDrugInteractions([drugA, drugB], []); 
 
-      res.json(analysis);
-    } catch (error) {
-      console.error('Deep drug interaction analysis error:', error);
-      res.status(500).json({ message: "深度分析服务暂时不可用" });
-    }
+          // 从返回结果中提取第一个（也是唯一一个）交互对象
+          // 如果AI返回错误，则interactions可能不存在
+          if (result && result.interactions && result.interactions.length > 0) {
+              res.json(result.interactions[0]);
+          } else if (result && result.error) {
+              // 如果AI分析返回了错误信息，也将其传递给前端
+              res.status(500).json({ message: result.message });
+          }
+          else {
+              // 如果没有找到交互信息，返回一个通用错误
+              throw new Error('No interaction data returned from analysis service.');
+          }
+      } catch (error) {
+          console.error('Deep drug interaction analysis error:', error);
+          res.status(500).json({ message: '深度分析服务暂时不可用' });
+      }
   });
 
   // Initialize drug database endpoint
