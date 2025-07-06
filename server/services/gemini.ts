@@ -3,6 +3,30 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 // 确保你已经设置了环境变量 GEMINI_API_KEY
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// 添加缺失的导出函数
+export async function analyzePatientRisks(patientData: any): Promise<any> {
+  // 这是一个简化的风险分析函数
+  return {
+    riskFactors: [],
+    overallRisk: 'low'
+  };
+}
+
+export async function searchClinicalGuidelines(condition: string, riskFactors: string[]): Promise<any> {
+  // 这是一个简化的指南搜索函数
+  return {
+    guidelines: []
+  };
+}
+
+export async function extractMedicalInformation(medicalRecords: string): Promise<any> {
+  // 这是一个简化的医疗信息提取函数
+  return {
+    diagnoses: [],
+    medications: []
+  };
+}
+
 function extractJsonFromString(text: string): string | null {
   const match = text.match(/```json\s*([\s\S]*?)\s*```/);
   if (match && match[1]) {

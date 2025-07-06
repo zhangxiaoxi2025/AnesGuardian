@@ -1,0 +1,105 @@
+import express from 'express';
+import multer from 'multer';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+import { analyzeDrugInteractions } from './services/gemini';
+import * as DrugService from './services/drug-service';
+
+// ---- AI 和图片上传的全局设置 ----
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const upload = multer({ storage: multer.memoryStorage() });
+
+function fileToGenerativePart(buffer: Buffer, mimeType: string) {
+  return {
+    inlineData: { data: buffer.toString("base64"), mimeType },
+  };
+}
+
+export function registerRoutes(app: express.Express) {
+
+    // --- 药物搜索路由 ---
+    app.get('/api/drugs/search', async (req, res) => {
+        const query = req.query.query as string;
+        try {
+            const drugs = await DrugService.searchDrugs(query || '');
+            res.json({ drugs });
+        } catch (error) {
+            console.error('Drug search error:', error);
+            res.status(500).json({ message: '药物搜索服务暂时不可用' });
+        }
+    });
+
+    // --- 药物相互作用分析路由 ---
+    app.post('/api/drug-interactions', async (req, res) => {
+        const { drugs } = req.body;
+        if (!drugs || !Array.isArray(drugs) || drugs.length < 2) {
+            return res.status(400).json({ message: "至少需要2种药物进行交互分析" });
+        }
+        try {
+            const drugObjects = [];
+            for (const drugName of drugs) {
+                const drugObj = await DrugService.getDrugByName(drugName);
+                if (drugObj) drugObjects.push(drugObj);
+            }
+            const result = await analyzeDrugInteractions(drugs, drugObjects);
+            res.json(result);
+        } catch (error) {
+            console.error('Drug interaction analysis error:', error);
+            res.status(500).json({ message: '药物交互分析服务暂时不可用' });
+        }
+    });
+
+    // --- 药物相互作用深度解释路由 ---
+    app.post("/api/interactions/explain", async (req, res) => {
+        const { drugA, drugB } = req.body;
+        if (!drugA || !drugB) {
+            return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
+        }
+        try {
+            const result = await analyzeDrugInteractions([drugA, drugB], []);
+            if (result && result.interactions && result.interactions.length > 0) {
+                res.json(result.interactions[0]);
+            } else if (result && result.error) {
+                res.status(500).json({ message: result.message });
+            } else {
+                throw new Error('No interaction data returned.');
+            }
+        } catch (error) {
+            console.error('Deep drug interaction analysis error:', error);
+            res.status(500).json({ message: '深度分析服务暂时不可用' });
+        }
+    });
+
+    // --- 图片识别路由 (最终优化版) ---
+    app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: "No image file uploaded." });
+            }
+            console.log("Received image for processing:", req.file.originalname);
+
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+
+            const textPrompt = `你是一名资深的麻醉医生。你的任务是审查这份病历图片，为麻醉风险评估提取核心信息。请严格遵循以下规则：1. 优先提取与麻醉风险最相关的心血管疾病（如高血压、冠心病、心脏支架）、呼吸系统疾病（如哮喘、COPD）、糖尿病、肝肾功能、过敏史和困难气道史。2. 忽略与麻醉风险关联不大的细节（如本次入院主诉的详细泌尿系统病史）。3. 用一句话精准总结最重要的病史。4. 列出所有当前用药。请严格按照下面的JSON格式输出，不要添加任何额外文字或markdown标记。 { "summary": "此处填写总结好的、与麻醉最相关的核心病史", "medications": ["药物1", "药物2"] }`;
+
+            const promptParts = [{ text: textPrompt }, fileToGenerativePart(req.file.buffer, req.file.mimetype)];
+
+            const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+            const responseText = result.response.text();
+
+            console.log("AI Raw Response:", responseText);
+
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            const jsonString = jsonMatch ? jsonMatch[0] : '{}';
+
+            const data = JSON.parse(jsonString);
+            res.status(200).json(data);
+        } catch (error) {
+            console.error("Image processing failed:", error);
+            res.status(500).json({ message: "AI image recognition failed." });
+        }
+    });
+
+    // --- 患者信息相关路由 (暂时禁用，避免启动错误) ---
+    // app.get('/api/patients', async (req, res) => { ... });
+    // app.post('/api/patients', async (req, res) => { ... });
+}
