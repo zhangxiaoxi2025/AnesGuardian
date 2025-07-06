@@ -1,463 +1,90 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import multer from "multer";
-import { storage } from "./storage";
-import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
-import { AgentOrchestrator } from "./services/agents";
+import express from 'express';
+import multer from 'multer';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+// 注意：我们只导入真正需要的 gemini 服务
+import { analyzeDrugInteractions } from './services/gemini'; 
+import * as DrugService from './services/drug-service';
 
-// --- Block for Image Processing Route ---
-
+// ---- AI 和图片上传的全局设置 ----
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const upload = multer({ storage: multer.memoryStorage() });
 
 function fileToGenerativePart(buffer: Buffer, mimeType: string) {
   return {
-    inlineData: {
-      data: buffer.toString("base64"),
-      mimeType,
-    },
+    inlineData: { data: buffer.toString("base64"), mimeType },
   };
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Patient routes
-  app.get("/api/patients", async (req, res) => {
-    try {
-      const patients = await storage.getAllPatients();
-      res.json(patients);
-    } catch (error) {
-      res.status(500).json({ message: error instanceof Error ? error.message : 'Unknown error' });
-    }
-  });
+export function registerRoutes(app: express.Express) {
 
-  app.get("/api/patients/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const patient = await storage.getPatient(id);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      res.json(patient);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/patients", async (req, res) => {
-    try {
-      const validatedData = insertPatientSchema.parse(req.body);
-      const patient = await storage.createPatient(validatedData);
-      res.status(201).json(patient);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.put("/api/patients/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const validatedData = insertPatientSchema.partial().parse(req.body);
-      const patient = await storage.updatePatient(id, validatedData);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      res.json(patient);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
-
-  app.patch("/api/patients/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const validatedData = insertPatientSchema.partial().parse(req.body);
-      const patient = await storage.updatePatient(id, validatedData);
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      res.json(patient);
-    } catch (error) {
-      res.status(400).json({ message: (error as Error).message });
-    }
-  });
-
-  // Assessment routes
-  app.get("/api/assessments", async (req, res) => {
-    try {
-      const assessments = await storage.getAllAssessments();
-      res.json(assessments);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.get("/api/assessments/:id", async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const assessment = await storage.getAssessment(id);
-      if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
-      }
-      res.json(assessment);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/patients/:patientId/assess", async (req, res) => {
-    try {
-      const patientId = parseInt(req.params.patientId);
-      
-      // Use the new reliable assessment service
-      const { ReliableAssessmentService } = await import('./services/reliable-assessment');
-      const service = ReliableAssessmentService.getInstance();
-      
-      const result = await service.startAssessment(patientId);
-      
-      if (result.success) {
-        res.json({ 
-          message: result.message, 
-          assessmentId: result.assessmentId 
-        });
-      } else {
-        res.status(400).json({ message: result.message });
-      }
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.get("/api/patients/:patientId/assessment", async (req, res) => {
-    try {
-      const patientId = parseInt(req.params.patientId);
-      const assessment = await storage.getAssessmentByPatientId(patientId);
-      if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found for this patient" });
-      }
-      res.json(assessment);
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  // Reset assessment endpoint
-  app.post("/api/patients/:patientId/assessment/reset", async (req, res) => {
-    try {
-      const patientId = parseInt(req.params.patientId);
-      
-      // Get existing assessment
-      let assessment = await storage.getAssessmentByPatientId(patientId);
-      
-      if (!assessment) {
-        // Create new assessment
-        assessment = await storage.createAssessment({
-          patientId,
-          status: 'in_progress',
-          overallRisk: null,
-          riskFactors: [],
-          drugInteractions: [],
-          clinicalGuidelines: [],
-          recommendations: [],
-          agentStatus: {}
-        });
-      }
-
-      // Use AssessmentManager for robust handling
-      const { AssessmentManager } = await import('./services/assessment-manager');
-      const manager = AssessmentManager.getInstance();
-      
-      const resetAssessment = await manager.resetAssessment(patientId, assessment.id);
-
-      res.json({ 
-        message: "Assessment reset and restarted", 
-        assessment: resetAssessment || assessment 
-      });
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.post("/api/assessments", async (req, res) => {
-    try {
-      const validatedData = insertAssessmentSchema.parse(req.body);
-      const assessment = await storage.createAssessment(validatedData);
-      res.status(201).json(assessment);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  });
-
-  app.post("/api/assessments/:id/run", async (req, res) => {
-    try {
-      const assessmentId = parseInt(req.params.id);
-      const assessment = await storage.getAssessment(assessmentId);
-      
-      if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
-      }
-
-      // Use AssessmentManager for robust timeout protection
-      const { AssessmentManager } = await import('./services/assessment-manager');
-      const manager = AssessmentManager.getInstance();
-      
-      // Start assessment with timeout protection
-      manager.startAssessment(assessment.patientId, assessmentId)
-        .catch(error => {
-          console.error('Background assessment failed:', error);
-        });
-
-      res.json({ message: "Assessment started", assessmentId });
-    } catch (error) {
-      res.status(500).json({ message: (error as Error).message });
-    }
-  });
-
-  app.get("/api/assessments/:id/logs", async (req, res) => {
-    try {
-      const assessmentId = parseInt(req.params.id);
-      const logs = await storage.getAgentLogsByAssessment(assessmentId);
-      res.json(logs);
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Demo data endpoint for testing
-  app.post("/api/demo-data", async (req, res) => {
-    try {
-      // Create demo patient
-      const demoPatient = await storage.createPatient({
-        name: "张三",
-        age: 65,
-        gender: "男",
-        surgeryType: "腹腔镜胆囊切除术",
-        asaClass: "ASA III",
-        medicalHistory: ["高血压", "糖尿病", "睡眠呼吸暂停综合征"],
-        medications: ["阿司匹林", "美托洛尔", "二甲双胍"],
-        allergies: ["青霉素"],
-        vitalSigns: {
-          bloodPressure: "150/90",
-          heartRate: 78,
-          temperature: 36.5,
-          respiratoryRate: 18,
-          oxygenSaturation: 95
-        },
-        labResults: {
-          hemoglobin: 12.5,
-          hematocrit: 38,
-          platelets: 250000,
-          creatinine: 1.2,
-          glucose: 8.5
+    // --- 药物搜索路由 (保留) ---
+    app.get('/api/drugs/search', async (req, res) => {
+        try {
+            const drugs = await DrugService.searchDrugs(req.query.query as string || '');
+            res.json({ drugs });
+        } catch (error) {
+            console.error('Drug search error:', error);
+            res.status(500).json({ message: '药物搜索服务暂时不可用' });
         }
-      });
+    });
 
-      // Create demo assessment
-      const demoAssessment = await storage.createAssessment({
-        patientId: demoPatient.id,
-        status: "in_progress"
-      });
-
-      res.json({ patient: demoPatient, assessment: demoAssessment });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // AI Chat endpoint
-  app.post("/api/chat", async (req, res) => {
-    try {
-      const { message } = req.body;
-      
-      if (!message || typeof message !== 'string') {
-        return res.status(400).json({ message: "Message is required" });
-      }
-
-      const { getChatResponse } = await import('./services/chat');
-      const aiResponse = await getChatResponse(message);
-
-      res.json({ response: aiResponse });
-    } catch (error) {
-      console.error('Chat error:', error);
-      res.status(500).json({ message: "AI服务暂时不可用" });
-    }
-  });
-
-  // Drug Interactions endpoint
-  app.post("/api/drug-interactions", async (req, res) => {
-    try {
-      const { drugs } = req.body;
-      
-      // 日志1：打印从前端接收到的原始药物列表
-      console.log('🔍 [DEBUG] 日志1 - 从前端接收到的原始药物列表:', JSON.stringify(drugs, null, 2));
-      
-      if (!drugs || !Array.isArray(drugs) || drugs.length < 2) {
-        return res.status(400).json({ message: "至少需要2种药物进行交互分析" });
-      }
-
-      // 日志2：从数据库查询药物对象
-      const { DrugService } = await import('./services/drug-service');
-      const drugObjects = [];
-      for (const drugName of drugs) {
-        const drugObj = await DrugService.getDrugByName(drugName);
-        drugObjects.push(drugObj);
-      }
-      console.log('🔍 [DEBUG] 日志2 - 从数据库查询到的完整药物对象:', JSON.stringify(drugObjects, null, 2));
-
-      const { analyzeDrugInteractions } = await import('./services/gemini');
-      const result = await analyzeDrugInteractions(drugs, drugObjects);
-
-      // 日志5：打印最终准备返回给前端的JSON数据
-      console.log('🔍 [DEBUG] 日志5 - 最终返回给前端的JSON数据:', JSON.stringify(result, null, 2));
-
-      // 确保返回正确的数据结构
-      res.json(result);
-    } catch (error) {
-      console.error('Drug interaction analysis error:', error);
-      res.status(500).json({ message: "药物交互分析服务暂时不可用" });
-    }
-  });
-
-  // Drug search endpoint
-  app.get("/api/drugs/search", async (req, res) => {
-    try {
-      const query = req.query.q as string;
-      
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({ message: "Query parameter 'q' is required" });
-      }
-
-      const { DrugService } = await import('./services/drug-service');
-      const drugs = await DrugService.searchDrugs(query);
-
-      res.json({ drugs });
-    } catch (error) {
-      console.error('Drug search error:', error);
-      res.status(500).json({ message: "药物搜索服务暂时不可用" });
-    }
-  });
-
-  // Drug Interaction Deep Analysis endpoint
-  app.post("/api/interactions/explain", async (req, res) => {
-      const { drugA, drugB } = req.body;
-
-      if (!drugA || !drugB || typeof drugA !== 'string' || typeof drugB !== 'string') {
-          return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
-      }
-
-      try {
-          // 统一调用我们唯一的分析函数
-          const { analyzeDrugInteractions } = await import('./services/gemini');
-          // 注意这里的参数格式：一个字符串数组和一个空数组
-          const result = await analyzeDrugInteractions([drugA, drugB], []); 
-
-          // 从返回结果中提取第一个（也是唯一一个）交互对象
-          // 如果AI返回错误，则interactions可能不存在
-          if (result && result.interactions && result.interactions.length > 0) {
-              res.json(result.interactions[0]);
-          } else if (result && result.error) {
-              // 如果AI分析返回了错误信息，也将其传递给前端
-              res.status(500).json({ message: result.message });
-          }
-          else {
-              // 如果没有找到交互信息，返回一个通用错误
-              throw new Error('No interaction data returned from analysis service.');
-          }
-      } catch (error) {
-          console.error('Deep drug interaction analysis error:', error);
-          res.status(500).json({ message: '深度分析服务暂时不可用' });
-      }
-  });
-
-  // Initialize drug database endpoint
-  app.post("/api/drugs/init", async (req, res) => {
-    try {
-      const { DrugService } = await import('./services/drug-service');
-      await DrugService.initializeDrugDatabase();
-      res.json({ message: "药物数据库初始化成功" });
-    } catch (error) {
-      console.error('Drug database init error:', error);
-      res.status(500).json({ message: "药物数据库初始化失败" });
-    }
-  });
-
-  // Clinical Guidelines search endpoint
-  app.get("/api/guidelines/search", async (req, res) => {
-    try {
-      const { q: query } = req.query;
-      
-      if (!query || typeof query !== 'string') {
-        return res.status(400).json({ message: "搜索查询参数是必需的" });
-      }
-
-      const { searchClinicalGuidelines } = await import('./services/gemini');
-      const guidelines = await searchClinicalGuidelines(query, []);
-
-      res.json({ 
-        guidelines: guidelines || [],
-        total: guidelines ? guidelines.length : 0
-      });
-    } catch (error) {
-      console.error('Clinical guidelines search error:', error);
-      res.status(500).json({ message: "临床指南搜索服务暂时不可用" });
-    }
-  });
-
-  // Medical Record Upload and Processing endpoint (legacy)
-  app.post("/api/records/upload", upload.single('image'), async (req, res) => {
-    try {
-      if (!req.file) {
-        return res.status(400).json({ message: "请选择一个图片文件" });
-      }
-
-      console.log('📸 收到病历照片上传请求，文件大小:', req.file.size);
-      
-      const result = await processMedicalRecord(req.file.buffer);
-      
-      if (!result.success) {
-        return res.status(400).json({ 
-          message: result.error || "处理失败",
-          success: false 
-        });
-      }
-
-      res.json(result);
-    } catch (error) {
-      console.error('❌ 病历处理失败:', error);
-      res.status(500).json({ 
-        message: "病历处理服务暂时不可用",
-        success: false 
-      });
-    }
-  });
-
-  app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ message: "No image file was uploaded." });
+    // --- 药物相互作用分析路由 (保留) ---
+    app.post('/api/drug-interactions', async (req, res) => {
+        const { drugs } = req.body;
+        if (!drugs || !Array.isArray(drugs) || drugs.length < 2) {
+            return res.status(400).json({ message: "至少需要2种药物进行交互分析" });
         }
-        console.log("Received image for processing:", req.file.originalname);
+        try {
+            const drugObjects = [];
+            for (const drugName of drugs) {
+                const drugObj = await DrugService.getDrugByName(drugName);
+                if (drugObj) drugObjects.push(drugObj);
+            }
+            const result = await analyzeDrugInteractions(drugs, drugObjects);
+            res.json(result);
+        } catch (error) {
+            console.error('Drug interaction analysis error:', error);
+            res.status(500).json({ message: '药物交互分析服务暂时不可用' });
+        }
+    });
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
-        const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
+    // --- 药物相互作用深度解释路由 (保留) ---
+    app.post("/api/interactions/explain", async (req, res) => {
+        const { drugA, drugB } = req.body;
+        if (!drugA || !drugB) {
+            return res.status(400).json({ message: "drugA和drugB参数都是必需的" });
+        }
+        try {
+            const result = await analyzeDrugInteractions([drugA, drugB], []);
+            if (result && result.interactions && result.interactions.length > 0) {
+                res.json(result.interactions[0]);
+            } else {
+                throw new Error('No interaction data returned.');
+            }
+        } catch (error) {
+            console.error('Deep drug interaction analysis error:', error);
+            res.status(500).json({ message: '深度分析服务暂时不可用' });
+        }
+    });
 
-        const textPrompt = "You are a professional medical information entry specialist. Analyze this medical record image carefully and return the following information in a strict JSON format, without any markdown formatting: 1. 'summary': A brief summary of the medical history, including main diagnoses and symptoms. 2. 'medications': An array of strings containing all current medication names. Ensure the extracted information is accurate.";
-        
-        const promptParts = [textPrompt, imagePart];
-
-        const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
-        const responseText = result.response.text();
-        
-        console.log("AI Raw Response:", responseText);
-        
-        const data = JSON.parse(responseText);
-        res.status(200).json(data);
-    } catch (error) {
-        console.error("Image processing failed:", error);
-        res.status(500).json({ message: "AI image recognition failed." });
-    }
-  });
-
-  const httpServer = createServer(app);
-  return httpServer;
+    // --- 图片识别路由 (保留) ---
+    app.post("/api/medical-records/process", upload.single('medicalRecord'), async (req, res) => {
+        try {
+            if (!req.file) {
+                return res.status(400).json({ message: "No image file uploaded." });
+            }
+            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-latest" });
+            const textPrompt = `你是一名资深的麻醉医生。你的任务是审查这份病历图片，为麻醉风险评估提取核心信息。请严格遵循以下规则：1. 优先提取与麻醉风险最相关的心血管疾病（如高血压、冠心病、心脏支架）、呼吸系统疾病（如哮喘、COPD）、糖尿病、肝肾功能、过敏史和困难气道史。2. 忽略与麻醉风险关联不大的细节。3. 用一句话精准总结最重要的病史。4. 列出所有当前用药。请严格按照下面的JSON格式输出，不要添加任何额外文字或markdown标记。 { "summary": "此处填写总结好的、与麻醉最相关的核心病史", "medications": ["药物1", "药物2"] }`;
+            const promptParts = [{ text: textPrompt }, fileToGenerativePart(req.file.buffer, req.file.mimetype)];
+            const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+            const responseText = result.response.text();
+            const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+            const jsonString = jsonMatch ? jsonMatch[0] : '{}';
+            const data = JSON.parse(jsonString);
+            res.status(200).json(data);
+        } catch (error) {
+            console.error("Image processing failed:", error);
+            res.status(500).json({ message: "AI image recognition failed." });
+        }
+    });
 }
