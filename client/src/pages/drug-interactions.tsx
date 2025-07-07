@@ -42,26 +42,38 @@ interface Drug {
 }
 
 const getSeverityIcon = (severity: string) => {
-  switch (severity) {
+  switch (severity?.toLowerCase()) {
     case 'major':
+    case '严重':
       return <AlertTriangle className="h-4 w-4 text-red-500" />;
     case 'moderate':
+    case '中等':
       return <AlertCircle className="h-4 w-4 text-yellow-500" />;
     case 'minor':
+    case '轻微':
       return <Info className="h-4 w-4 text-blue-500" />;
+    case 'none':
+    case '无':
+      return <CheckCircle className="h-4 w-4 text-green-500" />;
     default:
       return <Info className="h-4 w-4 text-gray-500" />;
   }
 };
 
 const getSeverityBadge = (severity: string) => {
-  switch (severity) {
+  switch (severity?.toLowerCase()) {
     case 'major':
+    case '严重':
       return <Badge variant="destructive" className="text-xs">严重</Badge>;
     case 'moderate':
+    case '中等':
       return <Badge variant="default" className="text-xs bg-yellow-500 hover:bg-yellow-600">中等</Badge>;
     case 'minor':
+    case '轻微':
       return <Badge variant="secondary" className="text-xs">轻微</Badge>;
+    case 'none':
+    case '无':
+      return <Badge variant="secondary" className="text-xs">无相互作用</Badge>;
     default:
       return <Badge variant="outline" className="text-xs">未知</Badge>;
   }
