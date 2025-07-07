@@ -80,24 +80,26 @@ export async function analyzeDrugInteractions(drugs: string[], drugObjects: any[
     const parsedData = JSON.parse(jsonString);
     console.log('[Final Diagnosis] Parsed Data:', parsedData);
 
-    // 为了匹配前端的期望格式，我们包装一下数据
-    return {
-        interactions: [
-            {
-                id: `ai_interaction_${drug1}_${drug2}`,
-                drugs: [drug1, drug2],
-                severity: parsedData.severity?.toLowerCase() || 'unknown',
-                description: parsedData.description,
-                recommendations: parsedData.recommendations
-            }
-        ],
-        // 如果AI认为没有交互，也返回一个空数组，避免前端逻辑复杂
-        monitoringRecommendations: (parsedData.interactionExists === "是") ? ["请根据具体风险进行监测"] : []
-    };
+    // 检查是否存在相互作用
+    if (parsedData.interactionExists === "是") {
+      // 存在相互作用，返回相互作用详情
+      return [
+        {
+          id: `ai_interaction_${drug1}_${drug2}`,
+          drugs: [drug1, drug2],
+          severity: parsedData.severity?.toLowerCase() || 'minor',
+          description: parsedData.description,
+          recommendations: parsedData.recommendations || []
+        }
+      ];
+    } else {
+      // 不存在相互作用，返回空数组
+      return [];
+    }
 
   } catch (error) {
     console.error('[Final Diagnosis] Error:', error);
-    // 返回一个明确的错误结构
-    return { error: true, message: `AI分析失败: ${error instanceof Error ? error.message : String(error)}` };
+    // 发生错误时返回空数组，避免前端崩溃
+    return [];
   }
 }
