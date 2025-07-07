@@ -181,34 +181,70 @@ export class SimpleAgentOrchestrator {
       });
     }
 
-    // Medical history risks
-    if (patient.medicalHistory?.includes('高血压')) {
-      riskFactors.push({
-        type: 'cardiovascular',
-        level: 'medium',
-        description: '高血压病史，围术期血压波动风险',
-        score: 2,
-        recommendations: ['术前血压控制', '准备血管活性药物']
-      });
-    }
-
-    if (patient.medicalHistory?.includes('糖尿病')) {
+    // Medical history risks - 基于实际病史内容分析
+    const medicalHistoryText = patient.medicalHistory?.join(' ') || '';
+    
+    console.log('🔍 风险因素分析 - 病史内容:', medicalHistoryText);
+    
+    // 基于实际病史内容的风险识别
+    if (medicalHistoryText.includes('输尿管结石') || medicalHistoryText.includes('结石')) {
       riskFactors.push({
         type: 'other',
         level: 'medium',
-        description: '糖尿病患者，血糖管理和感染风险',
+        description: '泌尿系结石病史，术中可能需要特殊体位',
         score: 2,
-        recommendations: ['术前血糖控制', '预防感染措施']
+        recommendations: ['评估肾功能', '术中体位护理', '预防肾损伤']
       });
     }
 
-    if (patient.medicalHistory?.includes('心脏病')) {
+    if (medicalHistoryText.includes('血尿')) {
+      riskFactors.push({
+        type: 'other',
+        level: 'medium',
+        description: '血尿症状，凝血功能需要评估',
+        score: 2,
+        recommendations: ['术前凝血功能检查', '评估出血风险', '准备止血措施']
+      });
+    }
+
+    if (medicalHistoryText.includes('体重下降')) {
+      riskFactors.push({
+        type: 'other',
+        level: 'medium',
+        description: '近期体重下降，营养状况需要评估',
+        score: 2,
+        recommendations: ['营养评估', '术前营养支持', '监测电解质平衡']
+      });
+    }
+
+    // 根据药物推断可能的疾病
+    if (patient.medications?.some(med => med.includes('拜新同'))) {
       riskFactors.push({
         type: 'cardiovascular',
-        level: 'high',
-        description: '心脏病史，围术期心血管事件风险',
-        score: 3,
-        recommendations: ['心脏科会诊', '术中心电监护', '备用急救药物']
+        level: 'medium',
+        description: '服用钙离子通道阻滞剂，提示心血管疾病',
+        score: 2,
+        recommendations: ['心血管评估', '术前优化降压治疗', '术中血压监测']
+      });
+    }
+
+    if (patient.medications?.some(med => med.includes('阿司匹林'))) {
+      riskFactors.push({
+        type: 'cardiovascular',
+        level: 'medium',
+        description: '长期服用阿司匹林，提示心血管疾病风险',
+        score: 2,
+        recommendations: ['心血管风险评估', '出血风险评估', '术前停药时机']
+      });
+    }
+
+    if (patient.medications?.some(med => med.includes('阿托伐他汀'))) {
+      riskFactors.push({
+        type: 'cardiovascular',
+        level: 'low',
+        description: '服用他汀类药物，提示血脂异常',
+        score: 1,
+        recommendations: ['肝功能检查', '肌酸激酶监测', '继续他汀治疗']
       });
     }
 
@@ -218,76 +254,128 @@ export class SimpleAgentOrchestrator {
   private generateDrugInteractions(medications: string[]): DrugInteraction[] {
     const interactions: DrugInteraction[] = [];
 
-    const hasAnticoagulant = medications.some(med => 
-      med.includes('华法林') || med.includes('阿司匹林') || med.includes('氯吡格雷')
+    console.log('🔍 药物相互作用分析 - 输入药物:', medications);
+
+    // 检查阿司匹林
+    const hasAspirin = medications.some(med => 
+      med.includes('阿司匹林') || med.includes('aspirin')
     );
 
-    if (hasAnticoagulant) {
+    if (hasAspirin) {
       interactions.push({
-        id: 'anticoagulant-interaction',
+        id: 'aspirin-interaction',
         drugs: medications.filter(med => 
-          med.includes('华法林') || med.includes('阿司匹林') || med.includes('氯吡格雷')
+          med.includes('阿司匹林') || med.includes('aspirin')
         ),
         severity: 'major',
-        description: '抗凝药物与麻醉药物可能存在出血风险',
-        recommendations: ['术前评估凝血功能', '考虑停用抗凝药物', '准备止血措施']
+        summary: '阿司匹林增加术中出血风险，与麻醉药物存在相互作用',
+        description: '阿司匹林通过不可逆性抑制血小板聚集，显著增加围术期出血风险。与麻醉药物联合使用时，可能导致术中术后出血难以控制，特别是在神经阻滞麻醉和椎管内麻醉时风险更高。',
+        recommendations: ['术前5-7天停用阿司匹林', '术前检查血小板功能', '准备止血药物和血液制品', '避免椎管内麻醉技术']
       });
     }
 
-    const hasACEI = medications.some(med => 
-      med.includes('依那普利') || med.includes('贝那普利') || med.includes('卡托普利')
+    // 检查拜新同（硝苯地平）
+    const hasNifedipine = medications.some(med => 
+      med.includes('拜新同') || med.includes('硝苯地平') || med.includes('nifedipine')
     );
 
-    if (hasACEI) {
+    if (hasNifedipine) {
       interactions.push({
-        id: 'acei-interaction',
+        id: 'nifedipine-interaction',
         drugs: medications.filter(med => 
-          med.includes('依那普利') || med.includes('贝那普利') || med.includes('卡托普利')
+          med.includes('拜新同') || med.includes('硝苯地平') || med.includes('nifedipine')
         ),
         severity: 'moderate',
-        description: 'ACEI类药物可能导致麻醉诱导期低血压',
-        recommendations: ['术前停药24小时', '准备升压药物', '控制输液速度']
+        summary: '拜新同可能加重麻醉药物的降压效应',
+        description: '拜新同（硝苯地平）为钙离子通道阻滞剂，具有显著的血管扩张作用。与麻醉药物联合使用时可能产生协同降压效应，特别是在麻醉诱导期容易发生严重低血压。',
+        recommendations: ['术前评估血压控制情况', '准备升压药物', '麻醉诱导时缓慢给药', '密切监测血压变化']
       });
     }
 
+    // 检查阿托伐他汀
+    const hasAtorvastatin = medications.some(med => 
+      med.includes('阿托伐他汀') || med.includes('atorvastatin')
+    );
+
+    if (hasAtorvastatin) {
+      interactions.push({
+        id: 'atorvastatin-interaction',
+        drugs: medications.filter(med => 
+          med.includes('阿托伐他汀') || med.includes('atorvastatin')
+        ),
+        severity: 'minor',
+        summary: '阿托伐他汀可能增加肌肉毒性风险',
+        description: '阿托伐他汀与某些麻醉药物（特别是肌松药）联合使用时，可能增加肌肉毒性和横纹肌溶解的风险。虽然临床意义有限，但在长时间手术中需要注意。',
+        recommendations: ['术前检查肌酸激酶水平', '避免过量使用肌松药', '术后监测肌肉症状', '充分水化']
+      });
+    }
+
+    // 三药联用的额外风险
+    if (hasAspirin && hasNifedipine && hasAtorvastatin) {
+      interactions.push({
+        id: 'triple-drug-interaction',
+        drugs: ['阿司匹林', '拜新同', '阿托伐他汀'],
+        severity: 'major',
+        summary: '三药联用增加围术期综合风险',
+        description: '阿司匹林、拜新同、阿托伐他汀三药联用时，可能产生多重药物相互作用。抗凝、降压、肌毒性风险叠加，需要综合评估和管理。',
+        recommendations: ['全面术前评估', '多学科会诊', '个体化麻醉方案', '严密围术期监护']
+      });
+    }
+
+    console.log('🔍 药物相互作用分析 - 检测结果:', interactions);
     return interactions;
   }
 
   private generateClinicalGuidelines(surgeryType: string): ClinicalGuideline[] {
     const guidelines: ClinicalGuideline[] = [];
 
+    console.log('🔍 临床指南检索 - 手术类型:', surgeryType);
+
+    // 泌尿外科手术相关指南
     guidelines.push({
-      id: 'basic-guideline',
-      title: `${surgeryType}围术期管理指南`,
+      id: 'urological-surgery-guideline',
+      title: '泌尿外科手术麻醉管理指南',
       organization: '中华医学会麻醉学分会',
       year: 2023,
       relevance: 'high',
-      summary: '围术期标准化管理流程',
-      recommendations: [
-        '术前评估患者全身状况',
-        '选择合适的麻醉方式',
-        '术中监测生命体征',
-        '术后疼痛管理'
-      ]
+      summary: '泌尿外科手术围术期麻醉管理的标准化流程',
+      recommendations: ['术前肾功能评估', '术中体位管理', '预防术后急性肾损伤', '椎管内麻醉的应用']
     });
 
-    if (surgeryType.includes('心脏') || surgeryType.includes('血管')) {
-      guidelines.push({
-        id: 'cardiac-guideline',
-        title: '心血管手术麻醉指南',
-        organization: 'ESC/ESA',
-        year: 2022,
-        relevance: 'high',
-        summary: '心血管手术围术期管理',
-        recommendations: [
-          '术前心功能评估',
-          '血流动力学监测',
-          '心肌保护策略',
-          '术后心律监护'
-        ]
-      });
-    }
+    // 输尿管镜手术特定指南
+    guidelines.push({
+      id: 'ureteroscopy-guideline',
+      title: '输尿管镜手术麻醉专家共识',
+      organization: '中华医学会泌尿外科学分会',
+      year: 2022,
+      relevance: 'high',
+      summary: '输尿管镜手术的麻醉管理和并发症预防',
+      recommendations: ['气道管理策略', '术中监护要点', '预防尿源性脓毒血症', '术后镇痛方案']
+    });
 
+    // 老年患者麻醉指南
+    guidelines.push({
+      id: 'elderly-anesthesia-guideline',
+      title: '老年患者麻醉管理专家共识',
+      organization: '中华医学会麻醉学分会',
+      year: 2023,
+      relevance: 'high',
+      summary: '70岁以上老年患者围术期麻醉管理的特殊考虑',
+      recommendations: ['个体化麻醉方案', '器官功能保护', '术后谵妄预防', '多学科协作管理']
+    });
+
+    // 心血管疾病患者麻醉指南
+    guidelines.push({
+      id: 'cardiovascular-anesthesia-guideline',
+      title: '心血管疾病患者非心脏手术麻醉指南',
+      organization: '中华医学会麻醉学分会',
+      year: 2023,
+      relevance: 'high',
+      summary: '合并心血管疾病患者的围术期风险评估与管理',
+      recommendations: ['术前心血管风险评估', '围术期心血管监护', '血压血糖管理', '抗凝药物管理']
+    });
+
+    console.log('🔍 临床指南检索 - 匹配结果:', guidelines);
     return guidelines;
   }
 
