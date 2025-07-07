@@ -34,7 +34,7 @@ export async function processImageWithAI(imageBuffer: Buffer): Promise<Extracted
     console.log('🤖 发送图片到Gemini AI进行分析...');
     
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash-lite-preview-06-17",
       contents: [
         {
           role: "user",
@@ -171,7 +171,7 @@ ${rawText}
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash-lite-preview-06-17",
       config: {
         responseMimeType: "application/json",
         responseSchema: {

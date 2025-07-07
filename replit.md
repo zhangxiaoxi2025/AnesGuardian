@@ -99,6 +99,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 7, 2025: 升级到最新Gemini 2.5 Flash Lite模型和修复药物相互作用分析
+  - 全面升级所有AI分析服务到gemini-2.5-flash-lite-preview-06-17模型，提升分析准确性
+  - 修复了药物相互作用分析的数据结构问题，现在能正确显示检测到的相互作用
+  - 优化了返回数据格式，确保前端能正确解析AI分析结果
+  - 验证了丙泊酚和阿米替林的中等程度相互作用能正确识别并提供临床建议
+  - 系统现在使用最新的多模态AI技术进行医疗分析
 - July 6, 2025: 完整系统功能文档创建和AI医疗记录分析系统验证成功
   - 创建了详细的SYSTEM_FEATURES.md系统功能文档，包含8大核心功能模块
   - 验证了AI医疗记录分析功能正常工作，成功处理70岁男性患者医疗记录

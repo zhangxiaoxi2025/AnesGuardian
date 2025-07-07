@@ -288,7 +288,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 请确保回答专业、准确、实用。`;
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-2.5-flash-lite-preview-06-17",
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       });
 

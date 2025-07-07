@@ -19,7 +19,7 @@ export async function getChatResponse(message: string): Promise<string> {
 - 如有必要，建议咨询专业医生`;
 
     const response = await genAI.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.5-flash-lite-preview-06-17",
       contents: prompt,
       config: {
         temperature: 0.7,

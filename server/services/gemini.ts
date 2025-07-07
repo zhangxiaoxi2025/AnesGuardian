@@ -43,7 +43,7 @@ export async function analyzeDrugInteractions(drugs: string[], drugObjects: any[
   console.log(`[Final Diagnosis] Starting analysis for: ${drug1} and ${drug2}`);
 
   try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash-lite-preview-06-17' });
 
     // 这是一个更直接、更强制的提示词
     const prompt = `
