@@ -24,12 +24,12 @@ export class SimpleAgentOrchestrator {
 
   private getAgentDisplayName(agent: string): string {
     const displayNames: Record<string, string> = {
-      'orchestrator': '协调器',
-      'emr_extractor': 'EMR提取器',
-      'risk_assessor': '风险评估器',
-      'drug_analyzer': '药物分析器',
-      'guideline_consultant': '指南顾问',
-      'quality_checker': '质量检查器'
+      'orchestrator': '总指挥Agent',
+      'emr_extractor': '病历提取Agent',
+      'risk_assessor': '风险评估Agent',
+      'drug_analyzer': '药物交互Agent',
+      'guideline_consultant': '指南检索Agent',
+      'quality_checker': '核查Agent'
     };
     return displayNames[agent] || agent;
   }
@@ -83,6 +83,7 @@ export class SimpleAgentOrchestrator {
       await new Promise(resolve => setTimeout(resolve, 1500));
       
       const riskFactors = this.generateRiskFactorsFromPatientData(patient);
+      console.log('🔍 生成的风险因素:', riskFactors);
       await this.updateAgentStatus('risk_assessor', 'completed', 100, `发现${riskFactors.length}项风险因素`);
 
       // Step 3: Drug Interaction Analysis
@@ -90,6 +91,7 @@ export class SimpleAgentOrchestrator {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       const drugInteractions = this.generateDrugInteractions(patient.medications || []);
+      console.log('🔍 生成的药物相互作用:', drugInteractions);
       await this.updateAgentStatus('drug_analyzer', 'completed', 100, `检测到${drugInteractions.length}项交互警示`);
 
       // Step 4: Clinical Guidelines Search
@@ -97,6 +99,7 @@ export class SimpleAgentOrchestrator {
       await new Promise(resolve => setTimeout(resolve, 800));
       
       const guidelines = this.generateClinicalGuidelines(patient.surgeryType);
+      console.log('🔍 生成的临床指南:', guidelines);
       await this.updateAgentStatus('guideline_consultant', 'completed', 100, `匹配${guidelines.length}项相关指南`);
 
       // Step 5: Quality Check
@@ -109,9 +112,21 @@ export class SimpleAgentOrchestrator {
       
       const overallRisk = this.calculateOverallRisk(riskFactors);
       const recommendations = this.generateRecommendations(riskFactors, drugInteractions, guidelines);
+      
+      console.log('🔍 生成的总体风险:', overallRisk);
+      console.log('🔍 生成的建议:', recommendations);
 
       // Update assessment with final results
       console.log(`Updating assessment ${this.assessmentId} to completed status`);
+      console.log('🔍 即将保存的评估数据:', {
+        status: 'completed',
+        overallRisk,
+        riskFactors: riskFactors.length,
+        drugInteractions: drugInteractions.length,
+        clinicalGuidelines: guidelines.length,
+        recommendations: recommendations.length
+      });
+      
       const finalAssessment = await storage.updateAssessment(this.assessmentId, {
         status: 'completed',
         overallRisk,

@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
 import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
-import { AgentOrchestrator } from "./services/agents";
+import { SimpleAgentOrchestrator } from "./services/simple-agents";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- Block for Image Processing Route ---
@@ -125,7 +125,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Start agent orchestration
-      const orchestrator = new AgentOrchestrator(assessment.id);
+      const orchestrator = new SimpleAgentOrchestrator(assessment.id);
       orchestrator.runAssessment(patientId).catch(console.error);
 
       res.json({ message: "Assessment started successfully", assessmentId: assessment.id });
@@ -164,7 +164,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`Assessment ${assessment.id} reset for patient ${patientId}`);
         
         // Start new agent orchestration
-        const orchestrator = new AgentOrchestrator(assessment.id);
+        const orchestrator = new SimpleAgentOrchestrator(assessment.id);
         orchestrator.runAssessment(patientId).catch(console.error);
         
         res.json({ message: "Assessment reset and restarted successfully", assessmentId: assessment.id });
@@ -184,7 +184,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`New assessment ${assessment.id} created for patient ${patientId}`);
         
         // Start agent orchestration
-        const orchestrator = new AgentOrchestrator(assessment.id);
+        const orchestrator = new SimpleAgentOrchestrator(assessment.id);
         orchestrator.runAssessment(patientId).catch(console.error);
         
         res.json({ message: "New assessment started successfully", assessmentId: assessment.id });
