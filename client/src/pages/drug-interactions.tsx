@@ -448,7 +448,7 @@ export default function DrugInteractions() {
                             </div>
                             
                             <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
-                              {interaction.description}
+                              {interaction.summary || (interaction.description?.substring(0, 50) + '...')}
                             </p>
                             
                             {Array.isArray(interaction.recommendations) && interaction.recommendations.length > 0 && (

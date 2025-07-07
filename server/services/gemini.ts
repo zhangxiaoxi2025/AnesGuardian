@@ -73,6 +73,7 @@ export async function analyzeDrugInteractions(drugs: string[], drugObjects: any[
 {
   "interactionExists": "是 / 否",
   "severity": "严重 / 中等 / 轻微 / 无",
+  "summary": "简短总结相互作用的核心风险（50字以内）",
   "description": "详细描述相互作用的机制、临床表现和风险程度",
   "recommendations": [
     "具体的临床监测建议",
@@ -105,6 +106,7 @@ export async function analyzeDrugInteractions(drugs: string[], drugObjects: any[
           id: `ai_interaction_${drug1}_${drug2}`,
           drugs: [drug1, drug2],
           severity: parsedData.severity?.toLowerCase() || 'minor',
+          summary: parsedData.summary || parsedData.description?.substring(0, 50) + '...',
           description: parsedData.description,
           recommendations: parsedData.recommendations || []
         }

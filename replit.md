@@ -99,6 +99,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 7, 2025: 药物相互作用界面优化和显示简化完成
+  - 实现药物相互作用界面的简化显示，主界面只显示50字以内的核心风险信息
+  - 修复了中英文严重程度映射问题，支持AI返回的中文值（严重、中等、轻微）
+  - 添加了新的summary字段到DrugInteraction接口，优化用户体验
+  - 完整的分析详情移至"查看详情"模态框，保持专业性的同时提高可读性
+  - 修复了图标和徽章显示问题，现在正确显示对应的警告级别
 - July 7, 2025: 升级到最新Gemini 2.5 Flash Lite模型和修复药物相互作用分析
   - 全面升级所有AI分析服务到gemini-2.5-flash-lite-preview-06-17模型，提升分析准确性
   - 修复了药物相互作用分析的数据结构问题，现在能正确显示检测到的相互作用

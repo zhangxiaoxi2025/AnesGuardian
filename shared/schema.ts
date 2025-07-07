@@ -104,6 +104,7 @@ export interface DrugInteraction {
   id: string;
   drugs: string[];
   severity: 'minor' | 'moderate' | 'major';
+  summary?: string;
   description: string;
   recommendations: string[];
 }
