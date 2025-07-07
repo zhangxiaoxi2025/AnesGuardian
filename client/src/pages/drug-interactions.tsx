@@ -21,17 +21,7 @@ interface DrugInteractionResponse {
   interactions: DrugInteraction[];
 }
 
-interface InteractionAnalysis {
-  mechanism?: string;
-  consequences?: string;
-  recommendations?: {
-    monitoring?: string;
-    dose_adjustment?: string;
-    alternatives?: string;
-    emergencyPlan?: string;
-  };
-  fullAnalysis?: string;
-}
+
 
 interface Drug {
   id: number;
@@ -85,8 +75,6 @@ export default function DrugInteractions() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedInteraction, setSelectedInteraction] = useState<DrugInteraction | null>(null);
   const [analysisModalOpen, setAnalysisModalOpen] = useState(false);
-  const [analysisData, setAnalysisData] = useState<InteractionAnalysis | null>(null);
-
   const drugInteractionMutation = useMutation({
     mutationFn: async (drugNames: string[]) => {
       console.log('🔍 前端: 开始药物相互作用分析...', drugNames);
@@ -115,39 +103,7 @@ export default function DrugInteractions() {
     },
   });
 
-  // 深度分析mutation
-  const analysisDeepDiveMutation = useMutation({
-    mutationFn: async ({ drugA, drugB }: { drugA: string; drugB: string }) => {
-      console.log('🔍 前端: 开始深度相互作用分析...', { drugA, drugB });
-      
-      const response = await fetch('/api/interactions/explain', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          drugs: [drugA, drugB],
-          interaction: {
-            drugs: [drugA, drugB]
-          }
-        }),
-      });
-      
-      console.log('📡 前端: 深度分析API响应状态:', response.status);
-      
-      if (!response.ok) {
-        throw new Error('Failed to get interaction analysis');
-      }
-      
-      const data = await response.json();
-      console.log('📊 前端: 深度分析结果:', data);
-      
-      return data as InteractionAnalysis;
-    },
-    onSuccess: (data) => {
-      setAnalysisData(data);
-    },
-  });
+
 
   // 动态搜索药物
   const { data: drugSearchResults = [] } = useQuery({
@@ -200,19 +156,10 @@ export default function DrugInteractions() {
     });
   };
 
-  // 处理点击交互卡片的深度分析
+  // 处理点击交互卡片显示详情
   const handleInteractionClick = (interaction: DrugInteraction) => {
     setSelectedInteraction(interaction);
-    setAnalysisData(null); // 清除之前的数据
     setAnalysisModalOpen(true);
-    
-    // 调用AI分析
-    if (interaction.drugs && interaction.drugs.length >= 2) {
-      analysisDeepDiveMutation.mutate({
-        drugA: interaction.drugs[0],
-        drugB: interaction.drugs[1]
-      });
-    }
   };
 
   const handleSearch = () => {
@@ -503,81 +450,39 @@ export default function DrugInteractions() {
           </DialogHeader>
 
           <div className="mt-6 space-y-6">
-            {analysisDeepDiveMutation.isPending && (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center space-y-4">
-                  <Loader2 className="w-8 h-8 animate-spin mx-auto text-blue-500" />
-                  <p className="text-gray-600 dark:text-gray-400">AI正在进行深度分析，请稍候...</p>
-                </div>
-              </div>
-            )}
 
-            {analysisDeepDiveMutation.error && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  分析失败，请重试。错误信息：{analysisDeepDiveMutation.error.message}
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {analysisData && (
+            {selectedInteraction && (
               <div className="space-y-6">
-                {/* 药理学机制 */}
+                {/* 详细描述 */}
                 <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
                     <AlertCircle className="w-5 h-5 text-blue-500" />
-                    药理学相互作用机制
+                    详细分析
                   </h3>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {analysisData?.mechanism}
-                  </p>
-                </Card>
-
-                {/* 临床后果 */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-red-500" />
-                    可能的临床后果与风险
-                  </h3>
-                  <p className="text-gray-700 dark:text-gray-300 leading-relaxed">
-                    {analysisData?.consequences}
-                  </p>
+                  <div className="text-gray-700 dark:text-gray-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedInteraction.description}
+                  </div>
                 </Card>
 
                 {/* 临床建议 */}
-                <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                    <CheckCircle className="w-5 h-5 text-green-500" />
-                    专业临床建议
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    {/* 监测建议 */}
-                    <div className="border-l-4 border-blue-500 pl-4">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">生命体征监测</h4>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData?.recommendations?.monitoring}
-                      </p>
-                    </div>
-
-                    {/* 剂量调整 */}
-                    <div className="border-l-4 border-yellow-500 pl-4">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">剂量调整方案</h4>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData?.recommendations?.dose_adjustment}
-                      </p>
-                    </div>
-
-                    {/* 替代方案 */}
-                    <div className="border-l-4 border-green-500 pl-4">
-                      <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">替代药物方案</h4>
-                      <p className="text-gray-700 dark:text-gray-300 text-sm leading-relaxed">
-                        {analysisData?.recommendations?.alternatives}
-                      </p>
-                    </div>
-                  </div>
-                </Card>
+                {selectedInteraction.recommendations && selectedInteraction.recommendations.length > 0 && (
+                  <Card className="p-6">
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      临床建议
+                    </h3>
+                    <ul className="space-y-3">
+                      {selectedInteraction.recommendations.map((recommendation, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <span className="text-green-500 mt-1">•</span>
+                          <span className="text-gray-700 dark:text-gray-300 leading-relaxed">
+                            {recommendation}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </Card>
+                )}
 
                 {/* 免责声明 */}
                 <Alert>
