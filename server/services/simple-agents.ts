@@ -1,5 +1,7 @@
 import { storage } from '../storage';
 import { RiskFactor, DrugInteraction, ClinicalGuideline, AgentStatus, Assessment } from '../../shared/schema';
+import { DrugEnhancementService } from './drug-enhancement';
+import { DrugService } from './drug-service';
 
 export class SimpleAgentOrchestrator {
   private assessmentId: number;
@@ -271,21 +273,83 @@ export class SimpleAgentOrchestrator {
 
     console.log('🔍 药物相互作用分析 - 输入药物:', medications);
 
-    // 检查阿司匹林
+    // 定义常用麻醉药物类别
+    const anesthesiaDrugs = {
+      ivAnesthetics: ['丙泊酚', '依托咪酯', '氯胺酮', '瑞马唑仑', '环泊酚'],
+      opioids: ['芬太尼', '舒芬太尼', '瑞芬太尼', '吗啡', '哌替啶'],
+      muscleRelaxants: ['罗库溴铵', '维库溴铵', '阿曲库铵', '顺式阿曲库胺'],
+      localAnesthetics: ['利多卡因', '布比卡因', '罗哌卡因', '左旋布比卡因']
+    };
+
+    // 检查阿司匹林与抗血小板药物
     const hasAspirin = medications.some(med => 
-      med.includes('阿司匹林') || med.includes('aspirin')
+      med.includes('阿司匹林') || med.includes('aspirin') || med.includes('拜阿司匹林')
     );
 
     if (hasAspirin) {
       interactions.push({
-        id: 'aspirin-interaction',
+        id: 'aspirin-anesthesia-interaction',
         drugs: medications.filter(med => 
-          med.includes('阿司匹林') || med.includes('aspirin')
+          med.includes('阿司匹林') || med.includes('aspirin') || med.includes('拜阿司匹林')
         ),
         severity: 'major',
-        summary: '阿司匹林增加术中出血风险，与麻醉药物存在相互作用',
-        description: '阿司匹林通过不可逆性抑制血小板聚集，显著增加围术期出血风险。与麻醉药物联合使用时，可能导致术中术后出血难以控制，特别是在神经阻滞麻醉和椎管内麻醉时风险更高。',
-        recommendations: ['术前5-7天停用阿司匹林', '术前检查血小板功能', '准备止血药物和血液制品', '避免椎管内麻醉技术']
+        summary: '阿司匹林增加术中出血风险，与麻醉药物存在重要相互作用',
+        description: '阿司匹林通过不可逆性抑制血小板聚集，显著增加围术期出血风险。与麻醉药物联合使用时：1）椎管内麻醉可能导致硬膜外血肿；2）神经阻滞时增加血肿风险；3）与肝素类药物协同增加出血；4）影响凝血功能检测的准确性。',
+        recommendations: ['术前5-7天停用阿司匹林', '术前检查血小板功能和凝血时间', '准备止血药物和血液制品', '避免椎管内麻醉技术', '选择可逆转的抗凝方案']
+      });
+    }
+
+    // 检查其他抗血小板药物
+    const hasAntiplatelet = medications.some(med => 
+      med.includes('氯吡格雷') || med.includes('替格瑞洛') || med.includes('倍林达') || med.includes('普拉格雷')
+    );
+
+    if (hasAntiplatelet) {
+      interactions.push({
+        id: 'antiplatelet-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('氯吡格雷') || med.includes('替格瑞洛') || med.includes('倍林达') || med.includes('普拉格雷')
+        ),
+        severity: 'major',
+        summary: 'P2Y12抑制剂与麻醉药物存在重要出血风险',
+        description: 'P2Y12受体抑制剂（如氯吡格雷、替格瑞洛）通过不可逆性抑制血小板聚集，围术期出血风险极高。与麻醉相关风险：1）椎管内麻醉禁忌；2）区域神经阻滞高风险；3）术中出血难以控制；4）需要7天以上停药时间。',
+        recommendations: ['术前5-7天停用（替格瑞洛）或7天停用（氯吡格雷）', '术前血小板功能检测', '避免椎管内和深部神经阻滞', '准备血小板输注', '考虑桥接治疗方案']
+      });
+    }
+
+    // 检查抗凝药物（华法林、新型口服抗凝药）
+    const hasAnticoagulant = medications.some(med => 
+      med.includes('华法林') || med.includes('利伐沙班') || med.includes('达比加群') || med.includes('阿哌沙班') || med.includes('艾乐妥')
+    );
+
+    if (hasAnticoagulant) {
+      interactions.push({
+        id: 'anticoagulant-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('华法林') || med.includes('利伐沙班') || med.includes('达比加群') || med.includes('阿哌沙班') || med.includes('艾乐妥')
+        ),
+        severity: 'major',
+        summary: '抗凝药物与麻醉技术存在严重出血风险',
+        description: '抗凝药物通过抑制凝血因子或凝血酶活性，显著增加围术期出血风险。与麻醉相关风险：1）椎管内麻醉绝对禁忌；2）深部神经阻滞禁忌；3）术中出血难以控制；4）术后血肿风险极高。新型口服抗凝药（NOACs）需要根据肾功能调整停药时间。',
+        recommendations: ['术前48-72小时停用NOACs', '华法林需INR<1.5', '检查凝血功能', '准备拮抗剂（维生素K、鱼精蛋白等）', '避免椎管内麻醉', '选择全身麻醉']
+      });
+    }
+
+    // 检查SSRI/SNRI抗抑郁药
+    const hasSSRI = medications.some(med => 
+      med.includes('舍曲林') || med.includes('氟西汀') || med.includes('帕罗西汀') || med.includes('西酞普兰') || med.includes('文拉法辛')
+    );
+
+    if (hasSSRI) {
+      interactions.push({
+        id: 'ssri-opioid-interaction',
+        drugs: medications.filter(med => 
+          med.includes('舍曲林') || med.includes('氟西汀') || med.includes('帕罗西汀') || med.includes('西酞普兰') || med.includes('文拉法辛')
+        ),
+        severity: 'major',
+        summary: 'SSRI/SNRI药物与阿片类药物存在5-羟色胺综合征风险',
+        description: 'SSRI/SNRI抗抑郁药通过抑制5-羟色胺再摄取增加突触间隙5-HT浓度。与阿片类药物（特别是哌替啶、曲马多）联合使用时可能导致5-羟色胺综合征，表现为高热、肌强直、意识改变、自主神经功能紊乱等，危及生命。',
+        recommendations: ['避免使用哌替啶和曲马多', '优选芬太尼类阿片药物', '监测体温和肌张力', '准备5-HT拮抗剂（赛庚啶）', '术前不停用SSRI/SNRI', '术后密切观察']
       });
     }
 
@@ -311,6 +375,60 @@ export class SimpleAgentOrchestrator {
           '术前考虑逐渐减量停药3-7天',
           '准备阿托品等抗胆碱能药物拮抗剂'
         ]
+      });
+    }
+
+    // 检查ACE抑制剂/ARB类药物
+    const hasACEI = medications.some(med => 
+      med.includes('依那普利') || med.includes('卡托普利') || med.includes('氯沙坦') || med.includes('缬沙坦') || med.includes('科素亚')
+    );
+
+    if (hasACEI) {
+      interactions.push({
+        id: 'acei-arb-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('依那普利') || med.includes('卡托普利') || med.includes('氯沙坦') || med.includes('缬沙坦') || med.includes('科素亚')
+        ),
+        severity: 'moderate',
+        summary: 'ACE抑制剂/ARB类药物可能加重麻醉相关低血压',
+        description: 'ACE抑制剂和ARB类药物通过抑制肾素-血管紧张素系统，具有降压和心脏保护作用。但与麻醉药物联合使用时：1）麻醉诱导期容易发生严重低血压；2）血管活性药物反应性降低；3）肾功能保护但可能掩盖低血容量；4）术后低血压风险增加。',
+        recommendations: ['术前24小时考虑停药', '准备血管活性药物', '充分术前水化', '避免快速麻醉诱导', '术中密切监测血压']
+      });
+    }
+
+    // 检查β受体阻滞剂
+    const hasBetaBlocker = medications.some(med => 
+      med.includes('美托洛尔') || med.includes('普萘洛尔') || med.includes('阿替洛尔') || med.includes('卡维地洛')
+    );
+
+    if (hasBetaBlocker) {
+      interactions.push({
+        id: 'beta-blocker-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('美托洛尔') || med.includes('普萘洛尔') || med.includes('阿替洛尔') || med.includes('卡维地洛')
+        ),
+        severity: 'moderate',
+        summary: 'β受体阻滞剂影响麻醉药物的心血管效应',
+        description: 'β受体阻滞剂通过阻断β-肾上腺素受体，减慢心率和降低血压。与麻醉药物相互作用：1）心率反应性降低；2）血压调节能力减弱；3）对儿茶酚胺类药物反应性下降；4）可能掩盖低血容量症状。',
+        recommendations: ['术前不停用β受体阻滞剂', '准备阿托品和异丙肾上腺素', '谨慎使用血管活性药物', '术中密切监测心率血压', '避免突然停药']
+      });
+    }
+
+    // 检查二甲双胍
+    const hasMetformin = medications.some(med => 
+      med.includes('二甲双胍') || med.includes('格华止') || med.includes('metformin')
+    );
+
+    if (hasMetformin) {
+      interactions.push({
+        id: 'metformin-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('二甲双胍') || med.includes('格华止') || med.includes('metformin')
+        ),
+        severity: 'moderate',
+        summary: '二甲双胍存在乳酸酸中毒风险',
+        description: '二甲双胍通过抑制肝脏糖原生成和增加胰岛素敏感性降血糖。围术期风险：1）造影剂肾病时可能诱发乳酸酸中毒；2）术中低血糖风险；3）肾功能不全时药物蓄积；4）与某些麻醉药物可能影响肾功能。',
+        recommendations: ['术前48小时停用二甲双胍', '监测血糖和乳酸水平', '评估肾功能', '避免使用肾毒性药物', '术后肾功能正常后恢复用药']
       });
     }
 

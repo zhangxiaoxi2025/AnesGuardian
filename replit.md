@@ -117,6 +117,15 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 10, 2025: 药物数据库全面扩展和AI增强服务完成
+  - 药物数据库从264种扩展到318种药物，涵盖围术期常用药物
+  - 新增抗血小板药物、抗凝药物、SSRI/SNRI等8大重要药物类别
+  - 集成DrugEnhancementService AI增强服务，提供药物信息自动补充功能
+  - 增强药物相互作用分析，重点关注与麻醉药物的相互作用
+  - 添加54种新药物，包括替格瑞洛、艾乐妥、瑞马唑仑等最新药物
+  - 创建3个新API端点：/api/drugs/enhance、/api/drugs/preoperative-guidelines、/api/drugs/anesthesia-interaction
+  - 完善simple-agents.ts中的药物相互作用检测逻辑，增加SSRI-阿片类5-HT综合征等关键相互作用
+  - 系统现在能识别并分析抗血小板、抗凝、SSRI、ACE抑制剂、β受体阻滞剂、二甲双胍等重要药物类别
 - July 10, 2025: AI问答系统专业化升级和氟哌噻吨美利曲辛相互作用分析完成
   - 优化AI问答系统提示词，从"AI助手"升级为"30年经验的主任医师"身份
   - 改变受众定位：从面向患者转为面向年轻麻醉医生的专业交流

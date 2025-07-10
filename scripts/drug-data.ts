@@ -1342,5 +1342,303 @@ export const coredrugs = [
     aliases: ['Prednisolone', '强的松龙'],
     category: '糖皮质激素',
     stop_guideline: '术前无需停药'
+  },
+
+  // 基于提供文件新增的药物类别
+  
+  // 新增抗抑郁药（补充遗漏的）
+  {
+    name: '阿戈美拉汀',
+    aliases: ['Agomelatine', '维度新', 'Valdoxan'],
+    category: 'SSRI抗抑郁药',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增帕金森病药物（补充遗漏的）
+  {
+    name: '美多芭',
+    aliases: ['Madopar', '左旋多巴/苄丝肼'],
+    category: '复方左旋多巴制剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '息宁',
+    aliases: ['Sinemet', '左旋多巴/卡比多巴'],
+    category: '复方左旋多巴制剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '森福罗',
+    aliases: ['Mirapex', '普拉克索'],
+    category: '多巴胺受体激动剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '泰舒达',
+    aliases: ['Trastal', '吡贝地尔'],
+    category: '多巴胺受体激动剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '安齐来',
+    aliases: ['Azilect', '雷沙吉兰'],
+    category: 'MAO-B抑制剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '柯丹',
+    aliases: ['Comtan', '恩他卡朋'],
+    category: 'COMT抑制剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '沙芬酰胺',
+    aliases: ['Xadago', 'Safinamide'],
+    category: 'MAO-B抑制剂',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增肾功能不全药物（补充遗漏的）
+  {
+    name: '促红细胞生成素',
+    aliases: ['Erythropoietin', 'EPO'],
+    category: '造血刺激因子',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '诺维乐',
+    aliases: ['Renvela', '司维拉姆'],
+    category: '磷结合剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '盖三淳',
+    aliases: ['骨化三醇', 'Calcitriol'],
+    category: '活性维生素D',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '聚苯乙烯磺酸钠',
+    aliases: ['Sodium Polystyrene Sulfonate'],
+    category: '钾离子结合剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '碳酸氢钠',
+    aliases: ['Sodium Bicarbonate'],
+    category: '碱性药物',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增高血压药物（补充遗漏的）
+  {
+    name: '拜新同',
+    aliases: ['Adalat', '硝苯地平控释片'],
+    category: '钙通道阻滞剂',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '科素亚',
+    aliases: ['Cozaar', '氯沙坦'],
+    category: 'ARB类降压药',
+    stop_guideline: '术前24小时停药'
+  },
+  {
+    name: '雅施达',
+    aliases: ['Coversyl', '培哚普利'],
+    category: 'ACE抑制剂',
+    stop_guideline: '术前24小时停药'
+  },
+  {
+    name: '纳催离',
+    aliases: ['Natrilix', '吲达帕胺'],
+    category: '利尿剂',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增冠心病药物（补充遗漏的）
+  {
+    name: '倍林达',
+    aliases: ['Brilinta', '替格瑞洛'],
+    category: '抗血小板药',
+    stop_guideline: '择期手术前5-7天停药'
+  },
+  {
+    name: '立普妥',
+    aliases: ['Lipitor', '阿托伐他汀'],
+    category: '他汀类降脂药',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '可定',
+    aliases: ['Crestor', '瑞舒伐他汀'],
+    category: '他汀类降脂药',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '欣康',
+    aliases: ['Imdur', '单硝酸异山梨酯'],
+    category: '硝酸酯类',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增心衰药物（补充遗漏的）
+  {
+    name: '诺欣妥',
+    aliases: ['Entresto', '沙库巴曲缬沙坦'],
+    category: 'ARNI',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '欧唐静',
+    aliases: ['Jardiance', '恩格列净'],
+    category: 'SGLT2抑制剂',
+    stop_guideline: '术前48小时停药'
+  },
+  {
+    name: '依普利酮',
+    aliases: ['Inspara', 'Eplerenone'],
+    category: 'MRA',
+    stop_guideline: '术前不停药'
+  },
+  {
+    name: '托拉塞米',
+    aliases: ['Torasemide'],
+    category: '袢利尿剂',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增抗凝药物（补充遗漏的）
+  {
+    name: '安卓',
+    aliases: ['Arixtra', '磺达肝癸钠'],
+    category: '选择性Xa因子抑制剂',
+    stop_guideline: '术前24小时停药'
+  },
+  {
+    name: '艾乐妥',
+    aliases: ['Eliquis', '阿哌沙班'],
+    category: '直接Xa因子抑制剂',
+    stop_guideline: '术前24-48小时停药'
+  },
+  {
+    name: '比伐芦定',
+    aliases: ['Bivalirudin'],
+    category: '直接凝血酶抑制剂',
+    stop_guideline: '术前根据手术类型停药'
+  },
+  {
+    name: '阿加曲班',
+    aliases: ['Argatroban'],
+    category: '直接凝血酶抑制剂',
+    stop_guideline: '术前根据手术类型停药'
+  },
+  {
+    name: '依度沙班',
+    aliases: ['Lixiana', 'Edoxaban'],
+    category: '直接Xa因子抑制剂',
+    stop_guideline: '术前24-48小时停药'
+  },
+
+  // 新增抗血小板药物（补充遗漏的）
+  {
+    name: '普拉格雷',
+    aliases: ['Effient', 'Prasugrel'],
+    category: 'P2Y12受体抑制剂',
+    stop_guideline: '择期手术前7天停药'
+  },
+  {
+    name: '坎格瑞洛',
+    aliases: ['Kengreal', 'Cangrelor'],
+    category: '静脉用P2Y12抑制剂',
+    stop_guideline: '术前1小时停药'
+  },
+  {
+    name: '欣维宁',
+    aliases: ['替罗非班', 'Tirofiban'],
+    category: 'GP IIb/IIIa抑制剂',
+    stop_guideline: '术前4小时停药'
+  },
+  {
+    name: '依替巴肽',
+    aliases: ['Integrilin', 'Eptifibatide'],
+    category: 'GP IIb/IIIa抑制剂',
+    stop_guideline: '术前4小时停药'
+  },
+  {
+    name: '培达',
+    aliases: ['Pletal', '西洛他唑'],
+    category: 'PDE抑制剂',
+    stop_guideline: '术前2天停药'
+  },
+  {
+    name: '双嘧达莫',
+    aliases: ['Dipyridamole', 'Aggrenox'],
+    category: 'PDE抑制剂',
+    stop_guideline: '术前2天停药'
+  },
+  {
+    name: '贝前列素钠',
+    aliases: ['Beraprost Sodium'],
+    category: '前列环素类似物',
+    stop_guideline: '术前不停药'
+  },
+
+  // 新增常用麻醉药物
+  
+  // 静脉麻醉药（新增）
+  {
+    name: '瑞马唑仑',
+    aliases: ['Remimazolam', '瑞马唑仑'],
+    category: '静脉麻醉药',
+    stop_guideline: '术前无需停药'
+  },
+  {
+    name: '环泊酚',
+    aliases: ['Cyclopropyl-methoxycarbonyl metomidate', 'Ciprofol'],
+    category: '静脉麻醉药',
+    stop_guideline: '术前无需停药'
+  },
+  {
+    name: '艾司氯胺酮',
+    aliases: ['Esketamine', 'S-ketamine'],
+    category: '静脉麻醉药',
+    stop_guideline: '术前无需停药'
+  },
+
+  // 肌松药（新增）
+  {
+    name: '顺式阿曲库胺',
+    aliases: ['Cisatracurium', '顺式阿曲库胺'],
+    category: '非去极化肌松药',
+    stop_guideline: '术前无需停药'
+  },
+
+  // 局麻药（新增）
+  {
+    name: '左旋布比卡因',
+    aliases: ['Levobupivacaine', 'Chirocaine'],
+    category: '局麻药',
+    stop_guideline: '术前无需停药'
+  },
+
+  // 镇痛药物（新增）
+  {
+    name: '布托啡诺',
+    aliases: ['Butorphanol', '布托啡诺'],
+    category: '阿片类镇痛药',
+    stop_guideline: '术前无需停药'
+  },
+  {
+    name: '氟比洛芬酯',
+    aliases: ['Flurbiprofen Axetil', '氟比洛芬酯'],
+    category: '非甾体抗炎药',
+    stop_guideline: '术前24小时停药'
+  },
+  {
+    name: '强考酮',
+    aliases: ['Oxycodone', '羟考酮'],
+    category: '阿片类镇痛药',
+    stop_guideline: '术前无需停药'
   }
 ];

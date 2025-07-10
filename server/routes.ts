@@ -228,6 +228,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Drug enhancement - AI-powered drug information enhancement
+  app.post("/api/drugs/enhance", async (req, res) => {
+    try {
+      const { drugName } = req.body;
+      
+      if (!drugName || typeof drugName !== 'string') {
+        return res.status(400).json({ message: "Drug name is required" });
+      }
+
+      console.log('🔍 开始增强药物信息:', drugName);
+
+      // Import DrugEnhancementService dynamically
+      const { DrugEnhancementService } = await import("./services/drug-enhancement");
+      
+      const enhancementData = await DrugEnhancementService.enhanceDrugInformation(drugName);
+      
+      console.log('✅ 药物信息增强完成:', drugName);
+      
+      res.json({ 
+        drugName,
+        enhancementData,
+        success: true 
+      });
+    } catch (error) {
+      console.error("❌ 药物信息增强失败:", error);
+      res.status(500).json({ 
+        message: "药物信息增强失败", 
+        error: error.message,
+        success: false 
+      });
+    }
+  });
+
+  // Drug preoperative guidelines
+  app.post("/api/drugs/preoperative-guidelines", async (req, res) => {
+    try {
+      const { drugName } = req.body;
+      
+      if (!drugName || typeof drugName !== 'string') {
+        return res.status(400).json({ message: "Drug name is required" });
+      }
+
+      console.log('🔍 生成术前停药建议:', drugName);
+
+      // Import DrugEnhancementService dynamically
+      const { DrugEnhancementService } = await import("./services/drug-enhancement");
+      
+      const guidelines = await DrugEnhancementService.generatePreoperativeGuidelines(drugName);
+      
+      console.log('✅ 术前停药建议生成完成:', drugName);
+      
+      res.json({ 
+        drugName,
+        guidelines,
+        success: true 
+      });
+    } catch (error) {
+      console.error("❌ 术前停药建议生成失败:", error);
+      res.status(500).json({ 
+        message: "术前停药建议生成失败", 
+        error: error.message,
+        success: false 
+      });
+    }
+  });
+
+  // Anesthesia drug interaction analysis
+  app.post("/api/drugs/anesthesia-interaction", async (req, res) => {
+    try {
+      const { patientDrug, anesthesiaDrugs } = req.body;
+      
+      if (!patientDrug || !Array.isArray(anesthesiaDrugs)) {
+        return res.status(400).json({ message: "Patient drug and anesthesia drugs are required" });
+      }
+
+      console.log('🔍 分析麻醉药物相互作用:', { patientDrug, anesthesiaDrugs });
+
+      // Import DrugEnhancementService dynamically
+      const { DrugEnhancementService } = await import("./services/drug-enhancement");
+      
+      const analysis = await DrugEnhancementService.analyzeAnesthesiaDrugInteraction(patientDrug, anesthesiaDrugs);
+      
+      console.log('✅ 麻醉药物相互作用分析完成');
+      
+      res.json({ 
+        patientDrug,
+        anesthesiaDrugs,
+        analysis,
+        success: true 
+      });
+    } catch (error) {
+      console.error("❌ 麻醉药物相互作用分析失败:", error);
+      res.status(500).json({ 
+        message: "麻醉药物相互作用分析失败", 
+        error: error.message,
+        success: false 
+      });
+    }
+  });
+
   // Drug interaction analysis
   app.post("/api/interactions/analyze", async (req, res) => {
     try {
