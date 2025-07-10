@@ -5,6 +5,7 @@ export interface IStorage {
   getPatient(id: number): Promise<Patient | undefined>;
   createPatient(patient: InsertPatient): Promise<Patient>;
   updatePatient(id: number, patient: Partial<InsertPatient>): Promise<Patient | undefined>;
+  deletePatient(id: number): Promise<boolean>;
   getAllPatients(): Promise<Patient[]>;
 
   // Assessment operations
@@ -58,6 +59,22 @@ export class MemStorage implements IStorage {
     const updatedPatient = { ...patient, ...update };
     this.patients.set(id, updatedPatient);
     return updatedPatient;
+  }
+
+  async deletePatient(id: number): Promise<boolean> {
+    const existed = this.patients.has(id);
+    if (existed) {
+      this.patients.delete(id);
+      // Also clean up related assessments and agent logs
+      const assessments = Array.from(this.assessments.values()).filter(a => a.patientId === id);
+      assessments.forEach(assessment => {
+        this.assessments.delete(assessment.id);
+        // Clean up agent logs for this assessment
+        const logs = Array.from(this.agentLogs.values()).filter(log => log.assessmentId === assessment.id);
+        logs.forEach(log => this.agentLogs.delete(log.id));
+      });
+    }
+    return existed;
   }
 
   async getAllPatients(): Promise<Patient[]> {

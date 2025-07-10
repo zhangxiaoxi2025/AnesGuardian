@@ -12,7 +12,7 @@ import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Patient, InsertPatient } from "@/../../shared/schema";
-import { Camera, Upload, Eye, Edit, Plus } from "lucide-react";
+import { Camera, Upload, Eye, Edit, Plus, Trash2 } from "lucide-react";
 
 export default function Patients() {
   const [, setLocation] = useLocation();
@@ -21,6 +21,8 @@ export default function Patients() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingPatient, setEditingPatient] = useState<Patient | null>(null);
   const [editForm, setEditForm] = useState<Partial<InsertPatient>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -48,6 +50,30 @@ export default function Patients() {
     onError: () => {
       toast({
         title: "更新失败",
+        description: "请稍后重试",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // 删除患者
+  const deletePatientMutation = useMutation({
+    mutationFn: async (patientId: number) => {
+      const response = await apiRequest('DELETE', `/api/patients/${patientId}`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      setPatientToDelete(null);
+      setDeleteDialogOpen(false);
+      toast({
+        title: "删除成功",
+        description: "患者信息已删除",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "删除失败",
         description: "请稍后重试",
         variant: "destructive",
       });
@@ -115,6 +141,22 @@ export default function Patients() {
 
   const handleStartAssessment = (patientId: number) => {
     startAssessmentMutation.mutate(patientId);
+  };
+
+  const handleDeletePatient = (patient: Patient) => {
+    setPatientToDelete(patient);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (patientToDelete) {
+      deletePatientMutation.mutate(patientToDelete.id);
+    }
+  };
+
+  const cancelDelete = () => {
+    setPatientToDelete(null);
+    setDeleteDialogOpen(false);
   };
 
   if (isLoading) {
@@ -359,6 +401,15 @@ export default function Patients() {
                   >
                     {startAssessmentMutation.isPending ? '启动中...' : '开始评估'}
                   </Button>
+                  
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleDeletePatient(patient)}
+                    disabled={deletePatientMutation.isPending}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
                 </div>
               </div>
             </CardContent>
@@ -377,7 +428,30 @@ export default function Patients() {
         )}
       </div>
 
-
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除患者</DialogTitle>
+            <DialogDescription>
+              您确定要删除患者 <strong>{patientToDelete?.name}</strong> 吗？
+              此操作将永久删除该患者的所有信息和评估记录，且无法恢复。
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button variant="outline" onClick={cancelDelete}>
+              取消
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete}
+              disabled={deletePatientMutation.isPending}
+            >
+              {deletePatientMutation.isPending ? '删除中...' : '确认删除'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

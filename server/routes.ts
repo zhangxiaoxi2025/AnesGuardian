@@ -86,6 +86,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.delete("/api/patients/:id", async (req, res) => {
+    try {
+      const patientId = parseInt(req.params.id);
+      const deleted = await storage.deletePatient(patientId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Patient not found" });
+      }
+      
+      res.json({ message: "Patient deleted successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete patient" });
+    }
+  });
+
   // Assessment routes
   app.get("/api/patients/:id/assessment", async (req, res) => {
     try {
