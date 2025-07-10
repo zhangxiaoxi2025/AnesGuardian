@@ -367,14 +367,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <div className="space-y-6">
         {/* Patient Overview */}
-        <div className="md:col-span-2 lg:col-span-1">
+        <div className="w-full">
           {patient && <PatientOverview patient={patient} />}
         </div>
 
         {/* Agent Status */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           {assessment?.agentStatus && Object.keys(assessment.agentStatus).length > 0 ? (
             <AgentStatusCard agentStatus={assessment.agentStatus} />
           ) : (
@@ -391,7 +391,7 @@ export default function Dashboard() {
         </div>
 
         {/* Risk Assessment */}
-        <div className="md:col-span-2 lg:col-span-1">
+        <div className="w-full">
           {assessment?.status === 'completed' ? (
             assessment.riskFactors && assessment.riskFactors.length > 0 ? (
               <RiskAssessment riskFactors={assessment.riskFactors} />
@@ -421,7 +421,7 @@ export default function Dashboard() {
         </div>
 
         {/* Drug Interactions */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           {assessment?.status === 'completed' ? (
             assessment.drugInteractions && assessment.drugInteractions.length > 0 ? (
               <DrugInteractions interactions={assessment.drugInteractions} />
@@ -451,7 +451,7 @@ export default function Dashboard() {
         </div>
 
         {/* Clinical Guidelines */}
-        <div className="md:col-span-2 lg:col-span-3">
+        <div className="w-full">
           {assessment?.status === 'completed' ? (
             assessment.clinicalGuidelines && assessment.clinicalGuidelines.length > 0 ? (
               <ClinicalGuidelines guidelines={assessment.clinicalGuidelines} />
@@ -482,7 +482,7 @@ export default function Dashboard() {
 
         {/* Assessment Summary */}
         {assessment?.status === 'completed' && (
-          <div className="md:col-span-2 lg:col-span-3">
+          <div className="w-full">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
