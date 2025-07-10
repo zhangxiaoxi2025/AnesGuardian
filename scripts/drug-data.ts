@@ -469,6 +469,12 @@ export const coredrugs = [
     stop_guideline: '术前14天停药'
   },
   {
+    name: '氟哌噻吨美利曲辛',
+    aliases: ['Fluphenazine-Melitracen', 'Deanxit', '黛力新', '氟哌嗪吨美利曲'],
+    category: '复方抗抑郁药',
+    stop_guideline: '术前逐渐减量，建议术前3-7天停药'
+  },
+  {
     name: '苯乙肼',
     aliases: ['Phenelzine', '纳迪尔'],
     category: 'MAOI抗抑郁药',
