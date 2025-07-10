@@ -98,7 +98,7 @@ export class SimpleAgentOrchestrator {
       await this.updateAgentStatus('guideline_consultant', 'active', 80, '检索临床指南');
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const guidelines = this.generateClinicalGuidelines(patient.surgeryType);
+      const guidelines = this.generateClinicalGuidelines(patient.surgeryType, patient);
       console.log('🔍 生成的临床指南:', guidelines);
       await this.updateAgentStatus('guideline_consultant', 'completed', 100, `匹配${guidelines.length}项相关指南`);
 
@@ -341,54 +341,147 @@ export class SimpleAgentOrchestrator {
     return interactions;
   }
 
-  private generateClinicalGuidelines(surgeryType: string): ClinicalGuideline[] {
+  private generateClinicalGuidelines(surgeryType: string, patient?: any): ClinicalGuideline[] {
     const guidelines: ClinicalGuideline[] = [];
 
     console.log('🔍 临床指南检索 - 手术类型:', surgeryType);
+    console.log('🔍 临床指南检索 - 患者信息:', patient);
 
+    // 基于手术类型匹配指南
+    const surgeryTypeLower = surgeryType.toLowerCase();
+    
     // 泌尿外科手术相关指南
-    guidelines.push({
-      id: 'urological-surgery-guideline',
-      title: '泌尿外科手术麻醉管理指南',
-      organization: '中华医学会麻醉学分会',
-      year: 2023,
-      relevance: 'high',
-      summary: '泌尿外科手术围术期麻醉管理的标准化流程',
-      recommendations: ['术前肾功能评估', '术中体位管理', '预防术后急性肾损伤', '椎管内麻醉的应用']
-    });
+    if (surgeryTypeLower.includes('泌尿') || surgeryTypeLower.includes('膀胱') || 
+        surgeryTypeLower.includes('肾') || surgeryTypeLower.includes('输尿管') || 
+        surgeryTypeLower.includes('前列腺') || surgeryTypeLower.includes('尿道')) {
+      guidelines.push({
+        id: 'urological-surgery-guideline',
+        title: '泌尿外科手术麻醉管理指南',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'high',
+        summary: '泌尿外科手术围术期麻醉管理的标准化流程',
+        recommendations: ['术前肾功能评估', '术中体位管理', '预防术后急性肾损伤', '椎管内麻醉的应用']
+      });
 
-    // 输尿管镜手术特定指南
-    guidelines.push({
-      id: 'ureteroscopy-guideline',
-      title: '输尿管镜手术麻醉专家共识',
-      organization: '中华医学会泌尿外科学分会',
-      year: 2022,
-      relevance: 'high',
-      summary: '输尿管镜手术的麻醉管理和并发症预防',
-      recommendations: ['气道管理策略', '术中监护要点', '预防尿源性脓毒血症', '术后镇痛方案']
-    });
+      // 输尿管镜手术特定指南
+      if (surgeryTypeLower.includes('输尿管') || surgeryTypeLower.includes('结石')) {
+        guidelines.push({
+          id: 'ureteroscopy-guideline',
+          title: '输尿管镜手术麻醉专家共识',
+          organization: '中华医学会泌尿外科学分会',
+          year: 2022,
+          relevance: 'high',
+          summary: '输尿管镜手术的麻醉管理和并发症预防',
+          recommendations: ['气道管理策略', '术中监护要点', '预防尿源性脓毒血症', '术后镇痛方案']
+        });
+      }
+    }
 
-    // 老年患者麻醉指南
-    guidelines.push({
-      id: 'elderly-anesthesia-guideline',
-      title: '老年患者麻醉管理专家共识',
-      organization: '中华医学会麻醉学分会',
-      year: 2023,
-      relevance: 'high',
-      summary: '70岁以上老年患者围术期麻醉管理的特殊考虑',
-      recommendations: ['个体化麻醉方案', '器官功能保护', '术后谵妄预防', '多学科协作管理']
-    });
+    // 妇科手术相关指南
+    if (surgeryTypeLower.includes('妇科') || surgeryTypeLower.includes('子宫') || 
+        surgeryTypeLower.includes('卵巢') || surgeryTypeLower.includes('附件') || 
+        surgeryTypeLower.includes('宫颈') || surgeryTypeLower.includes('阴道')) {
+      guidelines.push({
+        id: 'gynecological-surgery-guideline',
+        title: '妇科手术麻醉管理指南',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'high',
+        summary: '妇科手术围术期麻醉管理的标准化流程',
+        recommendations: ['术前评估生殖系统状况', '术中体位管理', '预防术后恶心呕吐', '术后镇痛方案']
+      });
+    }
 
-    // 心血管疾病患者麻醉指南
-    guidelines.push({
-      id: 'cardiovascular-anesthesia-guideline',
-      title: '心血管疾病患者非心脏手术麻醉指南',
-      organization: '中华医学会麻醉学分会',
-      year: 2023,
-      relevance: 'high',
-      summary: '合并心血管疾病患者的围术期风险评估与管理',
-      recommendations: ['术前心血管风险评估', '围术期心血管监护', '血压血糖管理', '抗凝药物管理']
-    });
+    // 普外科手术相关指南
+    if (surgeryTypeLower.includes('普外') || surgeryTypeLower.includes('腹部') || 
+        surgeryTypeLower.includes('胃') || surgeryTypeLower.includes('肠') || 
+        surgeryTypeLower.includes('胆') || surgeryTypeLower.includes('阑尾')) {
+      guidelines.push({
+        id: 'general-surgery-guideline',
+        title: '普外科手术麻醉管理指南',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'high',
+        summary: '普外科手术围术期麻醉管理的标准化流程',
+        recommendations: ['术前胃肠道准备', '术中体位管理', '预防术后恶心呕吐', '术后早期活动']
+      });
+    }
+
+    // 骨科手术相关指南
+    if (surgeryTypeLower.includes('骨科') || surgeryTypeLower.includes('骨折') || 
+        surgeryTypeLower.includes('关节') || surgeryTypeLower.includes('脊柱')) {
+      guidelines.push({
+        id: 'orthopedic-surgery-guideline',
+        title: '骨科手术麻醉管理指南',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'high',
+        summary: '骨科手术围术期麻醉管理的标准化流程',
+        recommendations: ['术前凝血功能评估', '椎管内麻醉优先考虑', '预防脂肪栓塞', '术后疼痛管理']
+      });
+    }
+
+    // 基于患者年龄匹配指南
+    if (patient && patient.age >= 65) {
+      guidelines.push({
+        id: 'elderly-anesthesia-guideline',
+        title: '老年患者麻醉管理专家共识',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'high',
+        summary: '70岁以上老年患者围术期麻醉管理的特殊考虑',
+        recommendations: ['个体化麻醉方案', '器官功能保护', '术后谵妄预防', '多学科协作管理']
+      });
+    }
+
+    // 基于患者病史和用药匹配指南
+    if (patient) {
+      const medicalHistory = patient.medicalHistory?.join(' ') || '';
+      const medications = patient.medications?.join(' ') || '';
+      
+      // 心血管疾病患者
+      if (medicalHistory.includes('高血压') || medicalHistory.includes('心脏') || 
+          medicalHistory.includes('冠心病') || medications.includes('替米沙坦') || 
+          medications.includes('拜新同') || medications.includes('阿司匹林')) {
+        guidelines.push({
+          id: 'cardiovascular-anesthesia-guideline',
+          title: '心血管疾病患者非心脏手术麻醉指南',
+          organization: '中华医学会麻醉学分会',
+          year: 2023,
+          relevance: 'high',
+          summary: '合并心血管疾病患者的围术期风险评估与管理',
+          recommendations: ['术前心血管风险评估', '围术期心血管监护', '血压血糖管理', '抗凝药物管理']
+        });
+      }
+
+      // 糖尿病患者
+      if (medicalHistory.includes('糖尿病') || medications.includes('二甲双胍') || 
+          medications.includes('拜糖平') || medications.includes('胰岛素')) {
+        guidelines.push({
+          id: 'diabetes-anesthesia-guideline',
+          title: '糖尿病患者围术期管理指南',
+          organization: '中华医学会麻醉学分会',
+          year: 2023,
+          relevance: 'high',
+          summary: '糖尿病患者围术期血糖管理和并发症预防',
+          recommendations: ['术前血糖控制评估', '围术期血糖监测', '预防酮症酸中毒', '术后血糖管理']
+        });
+      }
+    }
+
+    // 如果没有匹配到任何特定指南，提供通用指南
+    if (guidelines.length === 0) {
+      guidelines.push({
+        id: 'general-anesthesia-guideline',
+        title: '围术期麻醉管理通用指南',
+        organization: '中华医学会麻醉学分会',
+        year: 2023,
+        relevance: 'medium',
+        summary: '围术期麻醉管理的基本原则和标准流程',
+        recommendations: ['术前全面评估', '个体化麻醉方案', '术中严密监护', '术后安全管理']
+      });
+    }
 
     console.log('🔍 临床指南检索 - 匹配结果:', guidelines);
     return guidelines;

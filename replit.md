@@ -117,6 +117,12 @@ Preferred communication style: Simple, everyday language.
 
 ## Changelog
 
+- July 10, 2025: 临床指南智能匹配逻辑完全修复
+  - 修复了关键的临床指南匹配逻辑，之前无论什么手术类型都返回泌尿外科指南的严重bug
+  - 更新SimpleAgentOrchestrator中的generateClinicalGuidelines方法，现在能根据患者的实际手术类型和病史匹配专业指南
+  - 验证指南匹配准确性：妇科手术患者正确匹配妇科指南，泌尿外科患者正确匹配泌尿外科指南
+  - 保持了根据患者年龄和病史的多维度智能匹配功能
+  - 彻底解决了指南匹配的硬编码问题，系统现在提供真正个性化的专业医疗建议
 - July 7, 2025: 多Agent协同评估系统核心问题完全解决
   - 修复了关键的协调器类冲突问题，完全迁移到SimpleAgentOrchestrator
   - 解决了评估结果为空的核心bug，系统现在能生成完整的医疗分析报告
