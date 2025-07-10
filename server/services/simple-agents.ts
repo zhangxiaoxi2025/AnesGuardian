@@ -289,6 +289,31 @@ export class SimpleAgentOrchestrator {
       });
     }
 
+    // 检查氟哌噻吨美利曲辛（黛力新）
+    const hasDeanxit = medications.some(med => 
+      med.includes('氟哌') || med.includes('美利曲') || med.includes('黛力新') || med.includes('Deanxit')
+    );
+
+    if (hasDeanxit) {
+      interactions.push({
+        id: 'deanxit-anesthesia-interaction',
+        drugs: medications.filter(med => 
+          med.includes('氟哌') || med.includes('美利曲') || med.includes('黛力新')
+        ),
+        severity: 'major',
+        summary: '氟哌噻吨美利曲辛与麻醉药物存在重要相互作用',
+        description: '氟哌噻吨美利曲辛含有抗精神病药氟哌噻吨和三环抗抑郁药美利曲辛，与麻醉药物联合使用可能导致：1）中枢神经系统抑制增强，苏醒延迟；2）QT间期延长，心律失常风险增加；3）血压不稳定，低血压风险；4）抗胆碱能作用增强，口干、便秘等副作用加重。',
+        recommendations: [
+          '术前心电图评估QT间期',
+          '术中持续心电监护',
+          '谨慎使用血管活性药物',
+          '延长术后观察时间',
+          '术前考虑逐渐减量停药3-7天',
+          '准备阿托品等抗胆碱能药物拮抗剂'
+        ]
+      });
+    }
+
     // 检查拜新同（硝苯地平）
     const hasNifedipine = medications.some(med => 
       med.includes('拜新同') || med.includes('硝苯地平') || med.includes('nifedipine')
