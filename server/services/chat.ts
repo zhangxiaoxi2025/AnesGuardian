@@ -6,6 +6,12 @@ const genAI = new GoogleGenAI({
 
 export async function getChatResponse(message: string): Promise<string> {
   try {
+    // 记录用户问题
+    console.log('=== AI Chat Debug Start ===');
+    console.log('用户问题:', message);
+    console.log('问题长度:', message.length);
+    console.log('请求时间:', new Date().toISOString());
+    
     const prompt = `你是一名具有30年临床经验的高年资权威麻醉医生，正在为年轻麻醉医生提供专业指导。你的回答应该体现深厚的临床经验和权威的医学知识。
 
 ## 身份设定
@@ -39,6 +45,9 @@ export async function getChatResponse(message: string): Promise<string> {
 
 请以资深麻醉医生的身份，为年轻同行提供专业、实用的临床指导。`;
 
+    console.log('提示词长度:', prompt.length);
+    console.log('Token限制:', 2048);
+
     const response = await genAI.models.generateContent({
       model: "gemini-2.5-flash-lite-preview-06-17",
       contents: prompt,
@@ -51,9 +60,30 @@ export async function getChatResponse(message: string): Promise<string> {
     });
 
     const aiResponse = response.text || '抱歉，我暂时无法回答这个问题。';
+    
+    // 记录AI响应详情
+    console.log('AI响应状态:', response ? 'SUCCESS' : 'EMPTY');
+    console.log('响应长度:', aiResponse.length);
+    console.log('响应最后10个字符:', aiResponse.slice(-10));
+    console.log('是否以完整句子结尾:', /[。！？]$/.test(aiResponse));
+    
+    // 截断检测
+    const possibleTruncation = !aiResponse.endsWith('。') && !aiResponse.endsWith('！') && !aiResponse.endsWith('？') && !aiResponse.endsWith('.')
+    console.log('疑似截断:', possibleTruncation);
+    
+    // 记录完整响应（调试用）
+    console.log('=== AI完整响应 ===');
+    console.log(aiResponse);
+    console.log('=== AI Chat Debug End ===');
+    
     return aiResponse.trim();
   } catch (error) {
-    console.error('Chat service error:', error);
+    console.error('=== AI Chat Error ===');
+    console.error('错误类型:', error.name);
+    console.error('错误信息:', error.message);
+    console.error('错误堆栈:', error.stack);
+    console.error('发生时间:', new Date().toISOString());
+    console.error('=== Error Debug End ===');
     throw new Error('AI服务暂时不可用，请稍后再试。');
   }
 }
