@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Trash2 } from 'lucide-react';
 import { apiRequest } from '@/lib/queryClient';
 
 interface ChatMessage {
@@ -84,14 +85,36 @@ export default function Chat() {
     }
   };
 
+  const handleClearChat = () => {
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: '您好！我是麻醉守护神AI助手，可以为您解答围术期医学相关问题。请问有什么可以帮助您的吗？',
+        timestamp: new Date()
+      }
+    ]);
+  };
+
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">AI智能问答</h1>
-        <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-600">
-          <i className="fas fa-robot mr-2"></i>
-          麻醉智能AI
-        </Badge>
+        <div className="flex items-center space-x-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleClearChat}
+            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 border-red-200 dark:border-red-600 hover:border-red-300 dark:hover:border-red-500"
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            清空聊天
+          </Button>
+          <Badge variant="outline" className="text-blue-600 dark:text-blue-400 border-blue-200 dark:border-blue-600">
+            <i className="fas fa-robot mr-2"></i>
+            麻醉智能AI
+          </Badge>
+        </div>
       </div>
 
       <Card className="flex-1 flex flex-col">
