@@ -139,7 +139,7 @@ export default function ClinicalGuidelines() {
         return { guidelines: featuredGuidelines, total: featuredGuidelines.length };
       }
       
-      const response = await fetch(`/api/guidelines/search?q=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`/api/clinical-guidelines?search=${encodeURIComponent(searchQuery)}`);
       if (!response.ok) {
         throw new Error('Failed to search guidelines');
       }
