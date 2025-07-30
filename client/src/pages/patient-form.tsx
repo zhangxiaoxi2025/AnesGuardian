@@ -46,7 +46,7 @@ export default function PatientForm() {
       surgeryType: '',
       asaClass: 'ASA I',
       mallampatiGrade: '',
-      cardiacFunction: '正常',
+      cardiacFunction: '',
       medicalHistoryText: '',
       medicationsText: '',
       allergiesText: '',
@@ -354,7 +354,6 @@ export default function PatientForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="正常">正常 (无心功能异常)</SelectItem>
                           <SelectItem value="NYHA I级">NYHA I级 (无症状)</SelectItem>
                           <SelectItem value="NYHA II级">NYHA II级 (轻度活动受限)</SelectItem>
                           <SelectItem value="NYHA III级">NYHA III级 (明显活动受限)</SelectItem>

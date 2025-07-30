@@ -62,7 +62,7 @@ export const insertPatientSchema = createInsertSchema(patients).omit({
 }).extend({
   surgeryType: z.string().optional().default(""),
   mallampatiGrade: z.string().optional(),
-  cardiacFunction: z.string().optional().default("正常"),
+  cardiacFunction: z.string().optional(),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
