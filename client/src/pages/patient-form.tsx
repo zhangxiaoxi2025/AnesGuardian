@@ -65,7 +65,7 @@ export default function PatientForm() {
         surgeryType: data.surgeryType,
         asaClass: data.asaClass,
         mallampatiGrade: data.mallampatiGrade || undefined,
-        cardiacFunction: data.cardiacFunction,
+        cardiacFunction: data.cardiacFunction || undefined,
         medicalHistory: data.medicalHistoryText ? data.medicalHistoryText.split(',').map(s => s.trim()) : [],
         medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()) : [],
         allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()) : [],
@@ -108,8 +108,8 @@ export default function PatientForm() {
       });
 
       if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred during processing.' }));
-          throw new Error(errorData.message);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `上传失败 (${response.status})`);
       }
       return response.json();
     },
@@ -133,11 +133,20 @@ export default function PatientForm() {
         description: '病历信息已自动提取，请核实并编辑',
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       setRecognitionStatus('error');
+      console.error('📷 [前端] 病历识别失败:', error);
+      
+      let errorMessage = '请重试或手动输入信息';
+      if (error.message?.includes('繁忙')) {
+        errorMessage = 'AI服务繁忙，请稍后重试';
+      } else if (error.message?.includes('过载')) {
+        errorMessage = 'AI服务暂时过载，请稍后重试';
+      }
+      
       toast({
         title: '识别失败',
-        description: '请重试或手动输入信息',
+        description: errorMessage,
         variant: 'destructive',
       });
     },
