@@ -7,31 +7,83 @@ const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 export interface ExtractedMedicalData {
   summary: string;
   medications: string[];
+  allergies?: string[];
   rawText?: string;
   success: boolean;
   error?: string;
 }
 
-// 新的多模态图像分析函数
+// 麻醉专业化多模态图像分析函数
 export async function processImageWithAI(imageBuffer: Buffer): Promise<ExtractedMedicalData> {
   try {
-    console.log('🎯 开始使用Gemini多模态AI分析医疗记录图片...');
+    console.log('📷 [医疗记录识别] 开始麻醉专业化图像分析...');
     
     // 将图片转换为base64格式
     const base64Image = imageBuffer.toString('base64');
-    const mimeType = 'image/png'; // 默认PNG，也支持JPEG
+    const mimeType = 'image/jpeg'; // 支持JPEG和PNG
     
-    const prompt = `你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并以JSON格式返回以下信息：
-1. 'summary': 对病史的简要总结，包含主要诊断和症状
-2. 'medications': 一个包含所有当前用药名称的字符串数组
+    // 麻醉专业化医疗信息提取指令
+    const prompt = `你是一名资深的麻醉科主任医师，专门负责围术期风险评估。请从这张医疗记录图片中提取与麻醉相关的关键医疗信息。
 
-请确保提取的信息准确无误。请严格按照以下JSON格式返回：
+# 重点提取以下围术期风险相关信息：
+
+## 1. 心血管系统疾病
+- 高血压：控制情况、用药、血压水平、停药情况
+- 冠心病：心绞痛、心肌梗死史、支架或搭桥史
+- 心力衰竭：活动耐量、NYHA分级
+- 心律失常：房颤、早搏等类型及治疗
+- 瓣膜性心脏病：类型和严重程度
+
+## 2. 呼吸系统疾病
+- COPD/哮喘：控制情况、近期发作史
+- 睡眠呼吸暂停综合征
+- 近期呼吸道感染
+
+## 3. 内分泌与代谢系统
+- 糖尿病：血糖控制、用药情况、并发症
+- 甲状腺功能异常：甲亢、甲减
+- 肾上腺功能异常
+
+## 4. 神经系统疾病
+- 脑血管疾病：中风史、TIA、后遗症
+- 癫痫：发作频率、控制情况
+- 帕金森病、重症肌无力等神经肌肉疾病
+
+## 5. 肝肾功能
+- 肝功能不全：肝炎、肝硬化
+- 肾功能不全：肾炎、尿毒症
+
+## 6. 血液系统
+- 贫血程度
+- 凝血功能障碍
+- 抗凝药物使用：阿司匹林、华法林、氯吡格雷、替格瑞洛等及其停药时间
+
+## 7. 手术史和过敏史
+- 既往手术史，特别是麻醉史
+- 药物过敏史（准确提取过敏反应描述）
+
+## 8. 吸烟饮酒史
+- 吸烟：每日量、戒烟时间
+- 饮酒：每日量、戒酒时间
+
+请严格按照以下JSON格式返回，重点提取围术期麻醉风险评估相关的信息：
+
 {
-  "summary": "患者病史总结",
-  "medications": ["药物1", "药物2", "药物3"]
-}`;
+  "summary": "围术期风险相关的完整病史总结，重点突出与麻醉相关的基础疾病、药物使用情况（包括具体停药时间）、既往手术史、过敏史等关键信息",
+  "medications": ["所有提到的药物名称，包括已停用的药物"],
+  "allergies": ["药物过敏史，包括具体过敏反应描述"]
+}
 
-    console.log('🤖 发送图片到Gemini AI进行分析...');
+重要提醒：
+1. 只提取与围术期麻醉风险评估相关的信息
+2. 过敏史必须准确提取，包括过敏反应的具体描述
+3. 药物信息要完整，特别是抗凝药物的停药时间
+4. 基础疾病的控制情况和用药情况要详细描述
+5. 确保信息提取的准确性和完整性，不遗漏重要的临床细节
+6. 如果提到帕金森病、陈旧性脑梗死等重要疾病，必须在summary中详细描述
+7. 美多芭、氟哌啶醇等重要药物必须准确识别并包含在medications中`;
+
+    console.log('🤖 发送图片到Gemini AI进行麻醉专业化分析...');
     
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash-lite-preview-06-17",
@@ -55,15 +107,16 @@ export async function processImageWithAI(imageBuffer: Buffer): Promise<Extracted
           type: "object",
           properties: {
             summary: { type: "string" },
-            medications: { type: "array", items: { type: "string" } }
+            medications: { type: "array", items: { type: "string" } },
+            allergies: { type: "array", items: { type: "string" } }
           },
-          required: ["summary", "medications"]
+          required: ["summary", "medications", "allergies"]
         }
       }
     });
 
     const responseText = response.text || '{}';
-    console.log('📝 AI原始响应:', responseText);
+    console.log('📝 麻醉专业化AI原始响应:', responseText);
     
     // 解析AI响应
     let parsedResult;
@@ -80,16 +133,17 @@ export async function processImageWithAI(imageBuffer: Buffer): Promise<Extracted
       }
     }
     
-    console.log('✅ AI分析完成，结果:', parsedResult);
+    console.log('✅ 麻醉专业化AI分析完成，结果:', parsedResult);
     
     return {
       summary: parsedResult.summary || '无法提取病史总结',
       medications: Array.isArray(parsedResult.medications) ? parsedResult.medications : [],
+      allergies: Array.isArray(parsedResult.allergies) ? parsedResult.allergies : [],
       success: true
     };
     
   } catch (error) {
-    console.error('❌ 多模态AI分析失败:', error);
+    console.error('❌ 麻醉专业化AI分析失败:', error);
     
     // 如果AI分析失败，返回备用OCR+AI的方式
     console.log('🔄 尝试使用备用OCR+AI方式...');
@@ -107,7 +161,7 @@ export async function processMedicalRecord(imageBuffer: Buffer): Promise<Extract
     
     if (!rawText || rawText.trim().length === 0) {
       return {
-        diagnoses: [],
+        summary: '',
         medications: [],
         rawText: '',
         success: false,
@@ -120,16 +174,16 @@ export async function processMedicalRecord(imageBuffer: Buffer): Promise<Extract
     console.log('🧠 AI信息提取完成');
     
     return {
-      diagnoses: extractedData.diagnoses || [],
+      summary: extractedData.summary || '无法提取病史总结',
       medications: extractedData.medications || [],
       rawText: rawText,
       success: true
     };
     
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ 病历处理失败:', error);
     return {
-      diagnoses: [],
+      summary: '',
       medications: [],
       rawText: '',
       success: false,
@@ -150,7 +204,7 @@ async function performOCR(imageBuffer: Buffer): Promise<string> {
   }
 }
 
-async function extractMedicalInformation(rawText: string): Promise<{ diagnoses: string[]; medications: string[] }> {
+async function extractMedicalInformation(rawText: string): Promise<{ summary: string; medications: string[] }> {
   const prompt = `你是一位专业的医疗信息提取助手。请从以下病历文本中，严格按照JSON格式提取出所有的"疾病诊断"和"当前用药"。
 
 **重要说明：**
@@ -196,15 +250,15 @@ ${rawText}
     if (rawJson) {
       const data = JSON.parse(rawJson);
       return {
-        diagnoses: Array.isArray(data.diagnoses) ? data.diagnoses : [],
+        summary: data.summary || '无法提取病史总结',
         medications: Array.isArray(data.medications) ? data.medications : []
       };
     }
     
-    return { diagnoses: [], medications: [] };
+    return { summary: '', medications: [] };
     
   } catch (error) {
     console.error('❌ AI信息提取失败:', error);
-    return { diagnoses: [], medications: [] };
+    return { summary: '', medications: [] };
   }
 }
