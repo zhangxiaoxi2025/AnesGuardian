@@ -21,6 +21,8 @@ interface FormData {
   gender: string;
   surgeryType: string;
   asaClass: string;
+  mallampatiGrade?: string;
+  cardiacFunction: string;
   medicalHistoryText: string;
   medicationsText: string;
   allergiesText: string;
@@ -43,6 +45,8 @@ export default function PatientForm() {
       gender: 'male',
       surgeryType: '',
       asaClass: 'ASA I',
+      mallampatiGrade: '',
+      cardiacFunction: '正常',
       medicalHistoryText: '',
       medicationsText: '',
       allergiesText: '',
@@ -60,6 +64,8 @@ export default function PatientForm() {
         gender: data.gender,
         surgeryType: data.surgeryType,
         asaClass: data.asaClass,
+        mallampatiGrade: data.mallampatiGrade || undefined,
+        cardiacFunction: data.cardiacFunction,
         medicalHistory: data.medicalHistoryText ? data.medicalHistoryText.split(',').map(s => s.trim()) : [],
         medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()) : [],
         allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()) : [],
@@ -304,6 +310,55 @@ export default function PatientForm() {
                           <SelectItem value="ASA III">ASA III (严重系统性疾病)</SelectItem>
                           <SelectItem value="ASA IV">ASA IV (严重系统性疾病，生命危险)</SelectItem>
                           <SelectItem value="ASA V">ASA V (危重患者)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="mallampatiGrade"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mallampati气道评估分级</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="请选择Mallampati分级" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="I级">I级 (软腭、咽峡弓、悬雍垂清晰可见)</SelectItem>
+                          <SelectItem value="II级">II级 (软腭、咽峡弓可见，悬雍垂被舌根遮挡)</SelectItem>
+                          <SelectItem value="III级">III级 (软腭、悬雍垂底部可见)</SelectItem>
+                          <SelectItem value="IV级">IV级 (仅可见硬腭)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="cardiacFunction"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>心功能分级</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="请选择心功能分级" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="正常">正常 (无心功能异常)</SelectItem>
+                          <SelectItem value="NYHA I级">NYHA I级 (无症状)</SelectItem>
+                          <SelectItem value="NYHA II级">NYHA II级 (轻度活动受限)</SelectItem>
+                          <SelectItem value="NYHA III级">NYHA III级 (明显活动受限)</SelectItem>
+                          <SelectItem value="NYHA IV级">NYHA IV级 (休息时有症状)</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

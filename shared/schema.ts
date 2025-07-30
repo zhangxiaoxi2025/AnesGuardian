@@ -9,6 +9,8 @@ export const patients = pgTable("patients", {
   gender: text("gender").notNull(),
   surgeryType: text("surgery_type").default(""),
   asaClass: text("asa_class").notNull(),
+  mallampatiGrade: text("mallampati_grade"), // I, II, III, IV
+  cardiacFunction: text("cardiac_function"), // 正常, NYHA I, II, III, IV
   medicalHistory: json("medical_history").$type<string[]>().default([]).notNull(),
   medications: json("medications").$type<string[]>().default([]).notNull(),
   allergies: json("allergies").$type<string[]>().default([]).notNull(),
@@ -59,6 +61,8 @@ export const insertPatientSchema = createInsertSchema(patients).omit({
   createdAt: true,
 }).extend({
   surgeryType: z.string().optional().default(""),
+  mallampatiGrade: z.string().optional(),
+  cardiacFunction: z.string().optional().default("正常"),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
