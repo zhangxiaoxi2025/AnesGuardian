@@ -41,6 +41,8 @@ export class MemStorage implements IStorage {
       gender: insertPatient.gender,
       surgeryType: insertPatient.surgeryType,
       asaClass: insertPatient.asaClass,
+      mallampatiGrade: insertPatient.mallampatiGrade || null,
+      cardiacFunction: insertPatient.cardiacFunction || null,
       medicalHistory: Array.isArray(insertPatient.medicalHistory) ? insertPatient.medicalHistory : [],
       medications: Array.isArray(insertPatient.medications) ? insertPatient.medications : [],
       allergies: Array.isArray(insertPatient.allergies) ? insertPatient.allergies : [],
