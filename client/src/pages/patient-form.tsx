@@ -14,6 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { insertPatientSchema, type InsertPatient } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
+import MultiMedicalReportUpload from '@/components/multi-medical-report-upload';
 
 interface FormData {
   name: string;
@@ -64,9 +65,9 @@ export default function PatientForm() {
         medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()) : [],
         allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()) : [],
         vitalSigns: {
-          weight: data.weight,
-          height: data.height,
-          bmi: data.weight && data.height ? (data.weight / Math.pow(data.height / 100, 2)).toFixed(1) : null,
+          weight: data.weight.toString(),
+          height: data.height.toString(),
+          bmi: data.weight && data.height ? (data.weight / Math.pow(data.height / 100, 2)).toFixed(1) : "0",
         },
         labResults: {},
       };
@@ -449,6 +450,9 @@ export default function PatientForm() {
               </div>
             </CardContent>
           </Card>
+
+          {/* 医疗报告上传分析区域 */}
+          <MultiMedicalReportUpload patientId={undefined} />
 
           {/* 表单提交按钮 */}
           <div className="flex justify-end space-x-4">

@@ -788,6 +788,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Medical Report Upload endpoint with file handling
+  app.post("/api/medical-reports/upload", upload.single('imageFile'), async (req, res) => {
+    try {
+      console.log("医疗报告上传请求:");
+      console.log("- 文件:", req.file ? req.file.originalname : '无');
+      console.log("- 表单数据:", req.body);
+      
+      const { reportType, patientId, uploadMethod, textContent } = req.body;
+      
+      if (!reportType) {
+        return res.status(400).json({ message: "Report type is required" });
+      }
+      
+      if (!patientId) {
+        return res.status(400).json({ message: "Patient ID is required" });
+      }
+      
+      let imageBase64 = null;
+      let textInput = null;
+      
+      if (uploadMethod === 'image' && req.file) {
+        imageBase64 = req.file.buffer.toString('base64');
+      } else if (uploadMethod === 'text' && textContent) {
+        textInput = textContent;
+      } else {
+        return res.status(400).json({ message: "Either image file or text content is required" });
+      }
+      
+      // 处理医疗报告
+      const { extractedText, analysisResult } = await processMedicalReport(
+        imageBase64 || undefined,
+        textInput || undefined,
+        reportType
+      );
+
+      // 自动保存报告到数据库
+      const reportData = {
+        patientId: parseInt(patientId),
+        reportType,
+        uploadMethod: uploadMethod as 'image' | 'text',
+        originalContent: imageBase64 || textInput,
+        extractedText,
+        analysisResult,
+        status: 'analyzed' as const,
+      };
+      
+      const savedReport = await storage.createMedicalReport(reportData);
+      console.log("报告上传并分析完成:", savedReport.id);
+
+      res.json({
+        extractedText,
+        analysisResult,
+        savedReport,
+        message: "报告上传分析完成并已保存"
+      });
+    } catch (error) {
+      console.error("医疗报告上传失败:", error);
+      res.status(500).json({ 
+        message: "Medical report upload failed", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
   app.post("/api/medical-reports/analyze", async (req, res) => {
     try {
       console.log("医疗报告分析请求:", JSON.stringify(req.body, null, 2));
