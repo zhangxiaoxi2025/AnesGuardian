@@ -501,107 +501,6 @@ export class SimpleAgentOrchestrator {
   }
 
   private generateClinicalGuidelines(surgeryType: string, patient: any): ClinicalGuideline[] {
-      interactions.push({
-        id: 'acei-arb-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('依那普利') || med.includes('卡托普利') || med.includes('氯沙坦') || med.includes('缬沙坦') || med.includes('科素亚')
-        ),
-        severity: 'moderate',
-        summary: 'ACE抑制剂/ARB类药物可能加重麻醉相关低血压',
-        description: 'ACE抑制剂和ARB类药物通过抑制肾素-血管紧张素系统，具有降压和心脏保护作用。但与麻醉药物联合使用时：1）麻醉诱导期容易发生严重低血压；2）血管活性药物反应性降低；3）肾功能保护但可能掩盖低血容量；4）术后低血压风险增加。',
-        recommendations: ['术前24小时考虑停药', '准备血管活性药物', '充分术前水化', '避免快速麻醉诱导', '术中密切监测血压']
-      });
-    }
-
-    // 检查β受体阻滞剂
-    const hasBetaBlocker = medications.some(med => 
-      med.includes('美托洛尔') || med.includes('普萘洛尔') || med.includes('阿替洛尔') || med.includes('卡维地洛')
-    );
-
-    if (hasBetaBlocker) {
-      interactions.push({
-        id: 'beta-blocker-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('美托洛尔') || med.includes('普萘洛尔') || med.includes('阿替洛尔') || med.includes('卡维地洛')
-        ),
-        severity: 'moderate',
-        summary: 'β受体阻滞剂影响麻醉药物的心血管效应',
-        description: 'β受体阻滞剂通过阻断β-肾上腺素受体，减慢心率和降低血压。与麻醉药物相互作用：1）心率反应性降低；2）血压调节能力减弱；3）对儿茶酚胺类药物反应性下降；4）可能掩盖低血容量症状。',
-        recommendations: ['术前不停用β受体阻滞剂', '准备阿托品和异丙肾上腺素', '谨慎使用血管活性药物', '术中密切监测心率血压', '避免突然停药']
-      });
-    }
-
-    // 检查二甲双胍
-    const hasMetformin = medications.some(med => 
-      med.includes('二甲双胍') || med.includes('格华止') || med.includes('metformin')
-    );
-
-    if (hasMetformin) {
-      interactions.push({
-        id: 'metformin-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('二甲双胍') || med.includes('格华止') || med.includes('metformin')
-        ),
-        severity: 'moderate',
-        summary: '二甲双胍存在乳酸酸中毒风险',
-        description: '二甲双胍通过抑制肝脏糖原生成和增加胰岛素敏感性降血糖。围术期风险：1）造影剂肾病时可能诱发乳酸酸中毒；2）术中低血糖风险；3）肾功能不全时药物蓄积；4）与某些麻醉药物可能影响肾功能。',
-        recommendations: ['术前48小时停用二甲双胍', '监测血糖和乳酸水平', '评估肾功能', '避免使用肾毒性药物', '术后肾功能正常后恢复用药']
-      });
-    }
-
-    // 检查拜新同（硝苯地平）
-    const hasNifedipine = medications.some(med => 
-      med.includes('拜新同') || med.includes('硝苯地平') || med.includes('nifedipine')
-    );
-
-    if (hasNifedipine) {
-      interactions.push({
-        id: 'nifedipine-interaction',
-        drugs: medications.filter(med => 
-          med.includes('拜新同') || med.includes('硝苯地平') || med.includes('nifedipine')
-        ),
-        severity: 'moderate',
-        summary: '拜新同可能加重麻醉药物的降压效应',
-        description: '拜新同（硝苯地平）为钙离子通道阻滞剂，具有显著的血管扩张作用。与麻醉药物联合使用时可能产生协同降压效应，特别是在麻醉诱导期容易发生严重低血压。',
-        recommendations: ['术前评估血压控制情况', '准备升压药物', '麻醉诱导时缓慢给药', '密切监测血压变化']
-      });
-    }
-
-    // 检查阿托伐他汀
-    const hasAtorvastatin = medications.some(med => 
-      med.includes('阿托伐他汀') || med.includes('atorvastatin')
-    );
-
-    if (hasAtorvastatin) {
-      interactions.push({
-        id: 'atorvastatin-interaction',
-        drugs: medications.filter(med => 
-          med.includes('阿托伐他汀') || med.includes('atorvastatin')
-        ),
-        severity: 'minor',
-        summary: '阿托伐他汀可能增加肌肉毒性风险',
-        description: '阿托伐他汀与某些麻醉药物（特别是肌松药）联合使用时，可能增加肌肉毒性和横纹肌溶解的风险。虽然临床意义有限，但在长时间手术中需要注意。',
-        recommendations: ['术前检查肌酸激酶水平', '避免过量使用肌松药', '术后监测肌肉症状', '充分水化']
-      });
-    }
-
-    // 三药联用的额外风险
-    if (hasAspirin && hasNifedipine && hasAtorvastatin) {
-      interactions.push({
-        id: 'triple-drug-interaction',
-        drugs: ['阿司匹林', '拜新同', '阿托伐他汀'],
-        severity: 'major',
-        summary: '三药联用增加围术期综合风险',
-        description: '阿司匹林、拜新同、阿托伐他汀三药联用时，可能产生多重药物相互作用。抗凝、降压、肌毒性风险叠加，需要综合评估和管理。',
-        recommendations: ['全面术前评估', '多学科会诊', '个体化麻醉方案', '严密围术期监护']
-      });
-    }
-
-    console.log('🔍 药物相互作用分析 - 检测结果:', interactions);
-    return interactions;
-  }
-
-  private generateClinicalGuidelines(surgeryType: string, patient?: any): ClinicalGuideline[] {
     const guidelines: ClinicalGuideline[] = [];
 
     console.log('🔍 临床指南检索 - 手术类型:', surgeryType);
@@ -638,159 +537,169 @@ export class SimpleAgentOrchestrator {
       }
     }
 
-    // 妇科手术相关指南
-    if (surgeryTypeLower.includes('妇科') || surgeryTypeLower.includes('子宫') || 
-        surgeryTypeLower.includes('卵巢') || surgeryTypeLower.includes('附件') || 
-        surgeryTypeLower.includes('宫颈') || surgeryTypeLower.includes('阴道')) {
-      guidelines.push({
-        id: 'gynecological-surgery-guideline',
-        title: '妇科手术麻醉管理指南',
-        organization: '中华医学会麻醉学分会',
-        year: 2023,
-        relevance: 'high',
-        summary: '妇科手术围术期麻醉管理的标准化流程',
-        recommendations: ['术前评估生殖系统状况', '术中体位管理', '预防术后恶心呕吐', '术后镇痛方案']
+    // Enhanced analysis with medical reports
+    if (patient.medicalReports && patient.medicalReports.length > 0) {
+      console.log('🔍 增强指南匹配 - 结合医疗报告:', patient.medicalReports.length);
+      patient.medicalReports.forEach((report: any) => {
+        if (report.reportType === 'coagulation') {
+          guidelines.push({
+            id: 'coagulation-based-guideline',
+            title: '凝血功能异常患者围术期管理指南',
+            organization: '中华医学会血液学分会',
+            year: 2023,
+            relevance: 'high',
+            summary: '基于凝血功能检查结果的围术期管理策略',
+            recommendations: ['术前凝血功能评估', '术中止血管理', '避免椎管内麻醉', '备血准备']
+          });
+        }
       });
     }
 
-    // 普外科手术相关指南
-    if (surgeryTypeLower.includes('普外') || surgeryTypeLower.includes('腹部') || 
-        surgeryTypeLower.includes('胃') || surgeryTypeLower.includes('肠') || 
-        surgeryTypeLower.includes('胆') || surgeryTypeLower.includes('阑尾')) {
-      guidelines.push({
-        id: 'general-surgery-guideline',
-        title: '普外科手术麻醉管理指南',
-        organization: '中华医学会麻醉学分会',
-        year: 2023,
-        relevance: 'high',
-        summary: '普外科手术围术期麻醉管理的标准化流程',
-        recommendations: ['术前胃肠道准备', '术中体位管理', '预防术后恶心呕吐', '术后早期活动']
-      });
-    }
-
-    // 骨科手术相关指南
-    if (surgeryTypeLower.includes('骨科') || surgeryTypeLower.includes('骨折') || 
-        surgeryTypeLower.includes('关节') || surgeryTypeLower.includes('脊柱')) {
-      guidelines.push({
-        id: 'orthopedic-surgery-guideline',
-        title: '骨科手术麻醉管理指南',
-        organization: '中华医学会麻醉学分会',
-        year: 2023,
-        relevance: 'high',
-        summary: '骨科手术围术期麻醉管理的标准化流程',
-        recommendations: ['术前凝血功能评估', '椎管内麻醉优先考虑', '预防脂肪栓塞', '术后疼痛管理']
-      });
-    }
-
-    // 基于患者年龄匹配指南
-    if (patient && patient.age >= 65) {
-      guidelines.push({
-        id: 'elderly-anesthesia-guideline',
-        title: '老年患者麻醉管理专家共识',
-        organization: '中华医学会麻醉学分会',
-        year: 2023,
-        relevance: 'high',
-        summary: '70岁以上老年患者围术期麻醉管理的特殊考虑',
-        recommendations: ['个体化麻醉方案', '器官功能保护', '术后谵妄预防', '多学科协作管理']
-      });
-    }
-
-    // 基于患者病史和用药匹配指南
-    if (patient) {
-      const medicalHistory = patient.medicalHistory?.join(' ') || '';
-      const medications = patient.medications?.join(' ') || '';
-      
-      // 心血管疾病患者
-      if (medicalHistory.includes('高血压') || medicalHistory.includes('心脏') || 
-          medicalHistory.includes('冠心病') || medications.includes('替米沙坦') || 
-          medications.includes('拜新同') || medications.includes('阿司匹林')) {
-        guidelines.push({
-          id: 'cardiovascular-anesthesia-guideline',
-          title: '心血管疾病患者非心脏手术麻醉指南',
-          organization: '中华医学会麻醉学分会',
-          year: 2023,
-          relevance: 'high',
-          summary: '合并心血管疾病患者的围术期风险评估与管理',
-          recommendations: ['术前心血管风险评估', '围术期心血管监护', '血压血糖管理', '抗凝药物管理']
-        });
-      }
-
-      // 糖尿病患者
-      if (medicalHistory.includes('糖尿病') || medications.includes('二甲双胍') || 
-          medications.includes('拜糖平') || medications.includes('胰岛素')) {
-        guidelines.push({
-          id: 'diabetes-anesthesia-guideline',
-          title: '糖尿病患者围术期管理指南',
-          organization: '中华医学会麻醉学分会',
-          year: 2023,
-          relevance: 'high',
-          summary: '糖尿病患者围术期血糖管理和并发症预防',
-          recommendations: ['术前血糖控制评估', '围术期血糖监测', '预防酮症酸中毒', '术后血糖管理']
-        });
-      }
-    }
-
-    // 如果没有匹配到任何特定指南，提供通用指南
-    if (guidelines.length === 0) {
-      guidelines.push({
-        id: 'general-anesthesia-guideline',
-        title: '围术期麻醉管理通用指南',
-        organization: '中华医学会麻醉学分会',
-        year: 2023,
-        relevance: 'medium',
-        summary: '围术期麻醉管理的基本原则和标准流程',
-        recommendations: ['术前全面评估', '个体化麻醉方案', '术中严密监护', '术后安全管理']
-      });
-    }
-
-    console.log('🔍 临床指南检索 - 匹配结果:', guidelines);
     return guidelines;
   }
 
-  private calculateOverallRisk(riskFactors: RiskFactor[]): 'low' | 'medium' | 'high' {
-    const highRiskCount = riskFactors.filter(rf => rf.level === 'high').length;
-    const mediumRiskCount = riskFactors.filter(rf => rf.level === 'medium').length;
-
-    if (highRiskCount >= 2) return 'high';
-    if (highRiskCount >= 1 || mediumRiskCount >= 3) return 'high';
-    if (mediumRiskCount >= 1) return 'medium';
+  private calculateOverallRisk(riskFactors: RiskFactor[]): string {
+    const totalScore = riskFactors.reduce((sum, factor) => sum + factor.score, 0);
+    const highRiskCount = riskFactors.filter(f => f.level === 'high').length;
+    
+    if (highRiskCount >= 2 || totalScore >= 8) {
+      return 'high';
+    } else if (highRiskCount >= 1 || totalScore >= 4) {
+      return 'medium'; 
+    }
     return 'low';
+  }
+
+  private analyzeReportRisks(report: any): RiskFactor[] {
+    const risks: RiskFactor[] = [];
+    const reportType = report.reportType;
+    const extractedText = report.extractedText || '';
+    const analyzedData = report.analyzedData || {};
+
+    console.log(`🔍 分析 ${reportType} 报告风险:`, { extractedText: extractedText.substring(0, 100), analyzedData });
+
+    // ECG (心电图) 风险分析
+    if (reportType === 'ecg') {
+      if (extractedText.includes('ST段') || extractedText.includes('T波') || extractedText.includes('心律不齐') || extractedText.includes('房颤')) {
+        risks.push({
+          type: 'cardiovascular',
+          level: 'high',
+          description: '心电图显示异常，存在心血管风险',
+          score: 3,
+          recommendations: ['心脏科会诊', '术前心功能评估', '术中心电监护', '准备抗心律失常药物']
+        });
+      }
+      if (extractedText.includes('窦性心律') && !extractedText.includes('异常')) {
+        risks.push({
+          type: 'cardiovascular',
+          level: 'low',
+          description: '心电图显示窦性心律，心血管状况良好',
+          score: 0,
+          recommendations: ['维持现有心电监护']
+        });
+      }
+    }
+
+    // 凝血功能 风险分析
+    if (reportType === 'coagulation') {
+      if (extractedText.includes('延长') || extractedText.includes('异常') || extractedText.includes('↑') || extractedText.includes('升高')) {
+        risks.push({
+          type: 'bleeding',
+          level: 'high',
+          description: '凝血功能异常，出血风险增加',
+          score: 3,
+          recommendations: ['血液科会诊', '凝血因子检查', '准备凝血药物', '避免椎管内麻醉']
+        });
+      }
+      if (analyzedData.ptInr && parseFloat(analyzedData.ptInr) > 1.5) {
+        risks.push({
+          type: 'bleeding',
+          level: 'high', 
+          description: `INR值${analyzedData.ptInr}，抗凝过度风险`,
+          score: 3,
+          recommendations: ['调整抗凝药物', '维生素K准备', '监测凝血指标']
+        });
+      }
+    }
+
+    // 生化检查 风险分析  
+    if (reportType === 'biochemistry') {
+      if (extractedText.includes('肌酐') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'renal',
+          level: 'medium',
+          description: '肌酐升高，肾功能不全风险',
+          score: 2,
+          recommendations: ['肾内科会诊', '调整药物剂量', '监测尿量', '避免肾毒性药物']
+        });
+      }
+      if (extractedText.includes('转氨酶') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'hepatic',
+          level: 'medium',
+          description: '转氨酶升高，肝功能异常',
+          score: 2,
+          recommendations: ['肝病科会诊', '调整麻醉药物', '避免肝毒性药物', '术后肝功能监测']
+        });  
+      }
+      if (extractedText.includes('血糖') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'metabolic',
+          level: 'medium',
+          description: '血糖升高，围术期血糖管理需要关注',
+          score: 2,
+          recommendations: ['内分泌科会诊', '胰岛素准备', '术中血糖监测', '感染预防']
+        });
+      }
+    }
+
+    return risks;
   }
 
   private generateRecommendations(riskFactors: RiskFactor[], drugInteractions: DrugInteraction[], guidelines: ClinicalGuideline[]): string[] {
     const recommendations: string[] = [];
 
-    // Add risk-based recommendations
-    riskFactors.forEach(rf => {
-      recommendations.push(...rf.recommendations);
+    // Enhanced recommendations based on medical reports analysis
+    console.log('🔍 生成综合建议 - 风险因素:', riskFactors.length);
+    console.log('🔍 生成综合建议 - 药物相互作用:', drugInteractions.length);
+    console.log('🔍 生成综合建议 - 临床指南:', guidelines.length);
+
+    // Base recommendations from risk factors
+    riskFactors.forEach(factor => {
+      factor.recommendations?.forEach(rec => {
+        if (!recommendations.includes(rec)) {
+          recommendations.push(rec);
+        }
+      });
     });
 
-    // Add drug interaction recommendations
-    drugInteractions.forEach(di => {
-      if (di.recommendations && Array.isArray(di.recommendations)) {
-        recommendations.push(...di.recommendations);
-      }
+    // Enhanced recommendations from drug interactions  
+    drugInteractions.forEach(interaction => {
+      interaction.recommendations?.forEach(rec => {
+        if (!recommendations.includes(rec)) {
+          recommendations.push(rec);
+        }
+      });
     });
 
-    // Add guideline-based recommendations
-    guidelines.forEach(g => {
-      if (g.relevance === 'high') {
-        recommendations.push(...g.recommendations);
-      }
+    // Additional recommendations from clinical guidelines
+    guidelines.forEach(guideline => {
+      guideline.recommendations?.forEach(rec => {
+        if (!recommendations.includes(rec)) {
+          recommendations.push(rec);
+        }
+      });
     });
 
-    // Remove duplicates and ensure basic recommendations
-    const uniqueRecommendations = Array.from(new Set(recommendations));
+    // Add medical report specific recommendations
+    const hasHighRisk = riskFactors.some(f => f.level === 'high');
+    const hasMajorDrugInteraction = drugInteractions.some(d => d.severity === 'major');
     
-    if (uniqueRecommendations.length === 0) {
-      return [
-        '建议术前完善相关检查，评估患者全身状况',
-        '术中密切监测生命体征，确保患者安全',
-        '术后加强监护，及时处理可能的并发症',
-        '根据患者具体情况选择合适的麻醉方式'
-      ];
+    if (hasHighRisk && hasMajorDrugInteraction) {
+      recommendations.unshift('建议多学科团队会诊，制定个体化麻醉方案');
+      recommendations.push('术后ICU监护，密切观察各项生命体征');
     }
 
-    return uniqueRecommendations.slice(0, 8);
+    return recommendations.slice(0, 8); // Limit to 8 recommendations
   }
 }
