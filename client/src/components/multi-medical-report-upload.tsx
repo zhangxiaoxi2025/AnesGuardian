@@ -84,12 +84,24 @@ interface UploadItem {
   error?: string;
 }
 
+export interface DelayedUploadContext {
+  uploadItems: UploadItem[];
+  executeDelayedUploads: (patientId: number) => void;
+}
+
 interface MultiMedicalReportUploadProps {
   patientId?: number;
   onUploadComplete?: (results: any[]) => void;
+  onItemsReady?: (context: DelayedUploadContext) => void;
+  mode?: 'immediate' | 'delayed'; // immediate: 立即上传, delayed: 延迟上传
 }
 
-export default function MultiMedicalReportUpload({ patientId, onUploadComplete }: MultiMedicalReportUploadProps) {
+export default function MultiMedicalReportUpload({ 
+  patientId, 
+  onUploadComplete, 
+  onItemsReady,
+  mode = 'immediate' 
+}: MultiMedicalReportUploadProps) {
   const [uploadItems, setUploadItems] = useState<UploadItem[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
   const { toast } = useToast();
@@ -199,6 +211,20 @@ export default function MultiMedicalReportUpload({ patientId, onUploadComplete }
   // 批量上传处理
   const handleBatchUpload = () => {
     const pendingItems = uploadItems.filter(item => item.status === 'pending');
+    
+    if (mode === 'delayed' && !patientId) {
+      // 延迟模式：通知父组件数据已准备好
+      if (onItemsReady) {
+        onItemsReady({ uploadItems: pendingItems, executeDelayedUploads });
+      }
+      toast({
+        title: "文件已准备就绪",
+        description: "保存患者后将自动上传并分析医疗报告",
+      });
+      return;
+    }
+    
+    // 立即模式：直接上传
     pendingItems.forEach(item => {
       uploadSingleReport.mutate(item);
     });
@@ -217,6 +243,76 @@ export default function MultiMedicalReportUpload({ patientId, onUploadComplete }
       item.id === itemId ? { ...item, textContent } : item
     ));
   };
+
+  // 执行延迟上传（当patientId可用时调用）
+  const executeDelayedUploads = (newPatientId: number) => {
+    const pendingItems = uploadItems.filter(item => item.status === 'pending');
+    
+    if (pendingItems.length === 0) return;
+    
+    toast({
+      title: "开始上传医疗报告",
+      description: `正在处理 ${pendingItems.length} 个报告文件`,
+    });
+
+    pendingItems.forEach(item => {
+      // 创建新的上传项，使用新的patientId
+      const uploadItem = { ...item };
+      
+      // 手动调用上传mutation
+      const formData = new FormData();
+      formData.append('reportType', uploadItem.reportType);
+      formData.append('patientId', newPatientId.toString());
+      formData.append('uploadMethod', uploadItem.uploadMethod);
+
+      if (uploadItem.uploadMethod === 'image' && uploadItem.file) {
+        formData.append('imageFile', uploadItem.file);
+      } else if (uploadItem.uploadMethod === 'text' && uploadItem.textContent) {
+        formData.append('textContent', uploadItem.textContent);
+      }
+
+      // 更新状态为上传中
+      setUploadItems(prev => prev.map(i => 
+        i.id === uploadItem.id ? { ...i, status: 'uploading' as const, progress: 50 } : i
+      ));
+
+      // 执行上传
+      fetch('/api/medical-reports/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      .then(response => {
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+        return response.json();
+      })
+      .then(result => {
+        // 成功
+        setUploadItems(prev => prev.map(i => 
+          i.id === uploadItem.id ? { ...i, status: 'success' as const, progress: 100, result } : i
+        ));
+      })
+      .catch(error => {
+        // 失败
+        setUploadItems(prev => prev.map(i => 
+          i.id === uploadItem.id ? { 
+            ...i, 
+            status: 'error' as const, 
+            progress: 0, 
+            error: (error as Error).message 
+          } : i
+        ));
+      });
+    });
+  };
+
+  // 当有待上传项目时，通知父组件并传递执行函数
+  React.useEffect(() => {
+    if (mode === 'delayed' && onItemsReady && uploadItems.some(item => item.status === 'pending')) {
+      onItemsReady({ uploadItems, executeDelayedUploads });
+    }
+  }, [uploadItems, mode, onItemsReady, executeDelayedUploads]);
 
   const getStatusIcon = (status: UploadItem['status']) => {
     switch (status) {
@@ -287,10 +383,10 @@ export default function MultiMedicalReportUpload({ patientId, onUploadComplete }
               <h4 className="text-md font-medium">待上传报告 ({uploadItems.length})</h4>
               <Button
                 onClick={handleBatchUpload}
-                disabled={uploadItems.every(item => item.status !== 'pending') || !patientId}
+                disabled={uploadItems.every(item => item.status !== 'pending')}
                 size="sm"
               >
-                批量上传分析
+                {mode === 'delayed' && !patientId ? '准备上传' : '批量上传分析'}
               </Button>
             </div>
 

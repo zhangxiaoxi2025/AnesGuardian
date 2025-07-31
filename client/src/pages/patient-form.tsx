@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { insertPatientSchema, type InsertPatient } from '@shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 import { useLocation } from 'wouter';
-import MultiMedicalReportUpload from '@/components/multi-medical-report-upload';
+import MultiMedicalReportUpload, { type DelayedUploadContext } from '@/components/multi-medical-report-upload';
 
 interface FormData {
   name: string;
@@ -36,6 +36,7 @@ export default function PatientForm() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [recognitionStatus, setRecognitionStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [delayedUploadContext, setDelayedUploadContext] = useState<DelayedUploadContext | null>(null);
 
   const form = useForm<FormData>({
     defaultValues: {
@@ -65,22 +66,28 @@ export default function PatientForm() {
         medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()) : [],
         allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()) : [],
         vitalSigns: {
-          weight: data.weight.toString(),
-          height: data.height.toString(),
-          bmi: data.weight && data.height ? (data.weight / Math.pow(data.height / 100, 2)).toFixed(1) : "0",
+          weight: data.weight,
+          height: data.height,
+          bmi: data.weight && data.height ? parseFloat((data.weight / Math.pow(data.height / 100, 2)).toFixed(1)) : 0,
         },
         labResults: {},
       };
 
       const response = await apiRequest('POST', '/api/patients', patientData);
-      return response.json();
+      return response;
     },
-    onSuccess: () => {
+    onSuccess: (newPatient) => {
       toast({
         title: '成功',
         description: '患者信息已保存',
       });
       queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
+      
+      // 如果有待上传的医疗报告，执行延迟上传
+      if (delayedUploadContext && delayedUploadContext.uploadItems.length > 0) {
+        delayedUploadContext.executeDelayedUploads(newPatient.id);
+      }
+      
       navigate('/patients');
     },
     onError: (error: Error) => {
@@ -452,7 +459,11 @@ export default function PatientForm() {
           </Card>
 
           {/* 医疗报告上传分析区域 */}
-          <MultiMedicalReportUpload patientId={undefined} />
+          <MultiMedicalReportUpload 
+            patientId={undefined} 
+            mode="delayed"
+            onItemsReady={setDelayedUploadContext}
+          />
 
           {/* 表单提交按钮 */}
           <div className="flex justify-end space-x-4">
