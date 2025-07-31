@@ -13,6 +13,8 @@ import { RiskAssessment } from '@/components/risk-assessment';
 import { DrugInteractions } from '@/components/drug-interactions';
 import { ClinicalGuidelines } from '@/components/clinical-guidelines';
 import { EnhancedAssessmentReport } from '@/components/enhanced-assessment-report';
+import MedicalReportUpload from '@/components/medical-report-upload';
+import MedicalReportsList from '@/components/medical-reports-list';
 import { generateEnhancedReportHTML } from '@/utils/enhanced-report-generator';
 import type { Patient, Assessment, AgentStatus } from '../../../shared/schema';
 import { apiRequest } from '@/lib/queryClient';
@@ -330,6 +332,21 @@ export default function Dashboard() {
         {/* Patient Overview */}
         <div className="w-full">
           {patient && <PatientOverview patient={patient} />}
+        </div>
+
+        {/* Medical Reports Management */}
+        <div className="w-full space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Medical Report Upload */}
+            <div>
+              <MedicalReportUpload patientId={currentPatientId} />
+            </div>
+            
+            {/* Medical Reports List */}
+            <div>
+              <MedicalReportsList patientId={currentPatientId} />
+            </div>
+          </div>
         </div>
 
         {/* Agent Status */}

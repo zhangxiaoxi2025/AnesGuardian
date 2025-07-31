@@ -2,8 +2,9 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAssessmentSchema } from "@shared/schema";
+import { insertPatientSchema, insertAssessmentSchema, insertMedicalReportSchema } from "@shared/schema";
 import { SimpleAgentOrchestrator } from "./services/simple-agents";
+import { processMedicalReport } from "./services/medical-report-analyzer";
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 // --- Block for Image Processing Route ---
@@ -46,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(201).json(patient);
     } catch (error) {
       console.error("创建患者时发生错误:", error);
-      res.status(500).json({ message: "Failed to create patient", error: error.message });
+      res.status(500).json({ message: "Failed to create patient", error: (error as Error).message });
     }
   });
 
@@ -166,7 +167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (assessment) {
         // Reset existing assessment
-        assessment = await storage.updateAssessment(assessment.id, {
+        const updatedAssessment = await storage.updateAssessment(assessment.id, {
           status: 'pending',
           overallRisk: 'low',
           riskFactors: [],
@@ -176,13 +177,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           agentStatus: {}
         });
         
-        console.log(`Assessment ${assessment.id} reset for patient ${patientId}`);
+        if (updatedAssessment) {
+          console.log(`Assessment ${updatedAssessment.id} reset for patient ${patientId}`);
+          
+          // Start new agent orchestration
+          const orchestrator = new SimpleAgentOrchestrator(updatedAssessment.id);
+          orchestrator.runAssessment(patientId).catch(console.error);
+          
+          assessment = updatedAssessment;
+        }
         
-        // Start new agent orchestration
-        const orchestrator = new SimpleAgentOrchestrator(assessment.id);
-        orchestrator.runAssessment(patientId).catch(console.error);
-        
-        res.json({ message: "Assessment reset and restarted successfully", assessmentId: assessment.id });
+        res.json({ message: "Assessment reset and restarted successfully", assessmentId: assessment?.id });
       } else {
         // Create new assessment if none exists
         assessment = await storage.createAssessment({
@@ -255,7 +260,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("❌ 药物信息增强失败:", error);
       res.status(500).json({ 
         message: "药物信息增强失败", 
-        error: error.message,
+        error: (error as Error).message,
         success: false 
       });
     }
@@ -288,7 +293,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("❌ 术前停药建议生成失败:", error);
       res.status(500).json({ 
         message: "术前停药建议生成失败", 
-        error: error.message,
+        error: (error as Error).message,
         success: false 
       });
     }
@@ -322,7 +327,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("❌ 麻醉药物相互作用分析失败:", error);
       res.status(500).json({ 
         message: "麻醉药物相互作用分析失败", 
-        error: error.message,
+        error: (error as Error).message,
         success: false 
       });
     }
@@ -727,6 +732,116 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Clinical guidelines error:", error);
       res.status(500).json({ message: "Failed to fetch clinical guidelines" });
+    }
+  });
+
+  // Medical Reports API routes
+  app.get("/api/medical-reports", async (req, res) => {
+    try {
+      const { patientId } = req.query;
+      
+      if (!patientId) {
+        return res.status(400).json({ message: "Patient ID is required" });
+      }
+      
+      const reports = await storage.getMedicalReportsByPatientId(parseInt(patientId as string));
+      res.json(reports);
+    } catch (error) {
+      console.error("获取医疗报告失败:", error);
+      res.status(500).json({ message: "Failed to get medical reports" });
+    }
+  });
+
+  app.post("/api/medical-reports", async (req, res) => {
+    try {
+      console.log("创建医疗报告请求:", JSON.stringify(req.body, null, 2));
+      
+      const result = insertMedicalReportSchema.safeParse(req.body);
+      if (!result.success) {
+        console.error("医疗报告数据验证失败:", result.error.issues);
+        return res.status(400).json({ message: "Invalid medical report data", errors: result.error.issues });
+      }
+
+      const report = await storage.createMedicalReport(result.data);
+      console.log("医疗报告创建成功:", report);
+      
+      res.status(201).json(report);
+    } catch (error) {
+      console.error("创建医疗报告失败:", error);
+      res.status(500).json({ message: "Failed to create medical report", error: (error as Error).message });
+    }
+  });
+
+  app.delete("/api/medical-reports/:id", async (req, res) => {
+    try {
+      const reportId = parseInt(req.params.id);
+      const success = await storage.deleteMedicalReport(reportId);
+      
+      if (!success) {
+        return res.status(404).json({ message: "Medical report not found" });
+      }
+      
+      res.json({ message: "Medical report deleted successfully" });
+    } catch (error) {
+      console.error("删除医疗报告失败:", error);
+      res.status(500).json({ message: "Failed to delete medical report" });
+    }
+  });
+
+  app.post("/api/medical-reports/analyze", async (req, res) => {
+    try {
+      console.log("医疗报告分析请求:", JSON.stringify(req.body, null, 2));
+      
+      const { imageBase64, textInput, reportType, patientId } = req.body;
+      
+      if (!reportType) {
+        return res.status(400).json({ message: "Report type is required" });
+      }
+      
+      if (!imageBase64 && !textInput) {
+        return res.status(400).json({ message: "Either image or text input is required" });
+      }
+
+      // 处理医疗报告
+      const { extractedText, analysisResult } = await processMedicalReport(
+        imageBase64,
+        textInput,
+        reportType
+      );
+
+      // 如果提供了患者ID，自动保存报告到数据库
+      let savedReport = null;
+      if (patientId) {
+        try {
+          const reportData = {
+            patientId: parseInt(patientId),
+            reportType,
+            uploadMethod: imageBase64 ? 'image' as const : 'text' as const,
+            originalContent: imageBase64 || textInput,
+            extractedText,
+            analysisResult,
+            status: 'analyzed' as const,
+          };
+          
+          savedReport = await storage.createMedicalReport(reportData);
+          console.log("报告已自动保存到数据库:", savedReport.id);
+        } catch (saveError) {
+          console.warn("保存报告失败，但分析成功:", saveError);
+        }
+      }
+
+      res.json({
+        extractedText,
+        analysisResult,
+        savedReport,
+        message: savedReport ? "报告分析完成并已保存" : "报告分析完成"
+      });
+    } catch (error) {
+      console.error("医疗报告分析失败:", error);
+      res.status(500).json({ 
+        message: "Medical report analysis failed", 
+        error: (error as Error).message 
+      });
     }
   });
 

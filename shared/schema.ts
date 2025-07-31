@@ -53,6 +53,20 @@ export const drugs = pgTable("drugs", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+export const medicalReports = pgTable("medical_reports", {
+  id: serial("id").primaryKey(),
+  patientId: integer("patient_id").references(() => patients.id).notNull(),
+  reportType: text("report_type").notNull(), // 'ecg', 'echo', 'ct', 'xray', 'blood_routine', 'biochemistry', 'coagulation', 'blood_gas'
+  uploadMethod: text("upload_method").notNull(), // 'image', 'text'
+  originalImage: text("original_image"), // base64 encoded image (仅图片上传)
+  extractedText: text("extracted_text"), // OCR提取的文本
+  manualText: text("manual_text"), // 手动输入的文本
+  analyzedData: json("analyzed_data").$type<Record<string, any>>().default({}).notNull(), // AI分析结果
+  riskFactors: json("risk_factors").$type<string[]>().default([]).notNull(), // 识别的风险因素
+  recommendations: json("recommendations").$type<string[]>().default([]).notNull(), // 围术期建议
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Zod schemas for validation
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
@@ -78,6 +92,11 @@ export const insertDrugSchema = createInsertSchema(drugs).omit({
   updatedAt: true,
 });
 
+export const insertMedicalReportSchema = createInsertSchema(medicalReports).omit({
+  id: true,
+  createdAt: true,
+});
+
 // TypeScript types
 export type Patient = typeof patients.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
@@ -90,6 +109,9 @@ export type InsertAgentLog = z.infer<typeof insertAgentLogSchema>;
 
 export type Drug = typeof drugs.$inferSelect;
 export type InsertDrug = z.infer<typeof insertDrugSchema>;
+
+export type MedicalReport = typeof medicalReports.$inferSelect;
+export type InsertMedicalReport = z.infer<typeof insertMedicalReportSchema>;
 
 // Additional types for complex data structures
 export interface RiskFactor {
@@ -125,4 +147,30 @@ export interface AgentStatus {
   progress: number;
   lastAction: string;
   results?: any;
+}
+
+// Medical report types and interfaces
+export type ReportType = 'ecg' | 'echo' | 'ct' | 'xray' | 'blood_routine' | 'biochemistry' | 'coagulation' | 'blood_gas';
+export type UploadMethod = 'image' | 'text';
+
+export interface MedicalReportAnalysis {
+  reportType: ReportType;
+  keyFindings: string[];
+  abnormalValues: Array<{
+    parameter: string;
+    value: string;
+    normalRange: string;
+    significance: string;
+  }>;
+  riskLevel: 'low' | 'medium' | 'high';
+  clinicalSignificance: string;
+  anesthesiaImplications: string[];
+}
+
+export interface ReportTypeConfig {
+  id: ReportType;
+  name: string;
+  category: 'examination' | 'laboratory';
+  description: string;
+  keyParameters: string[];
 }

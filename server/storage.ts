@@ -1,4 +1,4 @@
-import { patients, assessments, agentLogs, type Patient, type InsertPatient, type Assessment, type InsertAssessment, type AgentLog, type InsertAgentLog } from "@shared/schema";
+import { patients, assessments, agentLogs, medicalReports, type Patient, type InsertPatient, type Assessment, type InsertAssessment, type AgentLog, type InsertAgentLog, type MedicalReport, type InsertMedicalReport } from "@shared/schema";
 
 export interface IStorage {
   // Patient operations
@@ -18,15 +18,24 @@ export interface IStorage {
   // Agent log operations
   createAgentLog(log: InsertAgentLog): Promise<AgentLog>;
   getAgentLogsByAssessment(assessmentId: number): Promise<AgentLog[]>;
+
+  // Medical report operations
+  getMedicalReport(id: number): Promise<MedicalReport | undefined>;
+  getMedicalReportsByPatientId(patientId: number): Promise<MedicalReport[]>;
+  createMedicalReport(report: InsertMedicalReport): Promise<MedicalReport>;
+  updateMedicalReport(id: number, report: Partial<InsertMedicalReport>): Promise<MedicalReport | undefined>;
+  deleteMedicalReport(id: number): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
   private patients: Map<number, Patient> = new Map();
   private assessments: Map<number, Assessment> = new Map();
   private agentLogs: Map<number, AgentLog> = new Map();
+  private medicalReports: Map<number, MedicalReport> = new Map();
   private currentPatientId: number = 1;
   private currentAssessmentId: number = 1;
   private currentAgentLogId: number = 1;
+  private currentMedicalReportId: number = 1;
 
   async getPatient(id: number): Promise<Patient | undefined> {
     return this.patients.get(id);
@@ -143,6 +152,49 @@ export class MemStorage implements IStorage {
 
   async getAgentLogsByAssessment(assessmentId: number): Promise<AgentLog[]> {
     return Array.from(this.agentLogs.values()).filter(log => log.assessmentId === assessmentId);
+  }
+
+  // Medical report operations
+  async getMedicalReport(id: number): Promise<MedicalReport | undefined> {
+    return this.medicalReports.get(id);
+  }
+
+  async getMedicalReportsByPatientId(patientId: number): Promise<MedicalReport[]> {
+    return Array.from(this.medicalReports.values()).filter(report => report.patientId === patientId);
+  }
+
+  async createMedicalReport(insertReport: InsertMedicalReport): Promise<MedicalReport> {
+    const id = this.currentMedicalReportId++;
+    const report: MedicalReport = {
+      id,
+      patientId: insertReport.patientId,
+      reportType: insertReport.reportType,
+      uploadMethod: insertReport.uploadMethod,
+      originalContent: insertReport.originalContent,
+      extractedText: insertReport.extractedText || null,
+      analysisResult: insertReport.analysisResult || null,
+      status: insertReport.status || "pending",
+      createdAt: new Date(),
+    };
+    this.medicalReports.set(id, report);
+    return report;
+  }
+
+  async updateMedicalReport(id: number, update: Partial<InsertMedicalReport>): Promise<MedicalReport | undefined> {
+    const report = this.medicalReports.get(id);
+    if (!report) return undefined;
+    
+    const updatedReport = { ...report, ...update };
+    this.medicalReports.set(id, updatedReport);
+    return updatedReport;
+  }
+
+  async deleteMedicalReport(id: number): Promise<boolean> {
+    const existed = this.medicalReports.has(id);
+    if (existed) {
+      this.medicalReports.delete(id);
+    }
+    return existed;
   }
 }
 
