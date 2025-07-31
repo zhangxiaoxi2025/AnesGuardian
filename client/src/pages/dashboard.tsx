@@ -12,6 +12,8 @@ import { AgentStatusCard } from '@/components/agent-status';
 import { RiskAssessment } from '@/components/risk-assessment';
 import { DrugInteractions } from '@/components/drug-interactions';
 import { ClinicalGuidelines } from '@/components/clinical-guidelines';
+import { EnhancedAssessmentReport } from '@/components/enhanced-assessment-report';
+import { generateEnhancedReportHTML } from '@/utils/enhanced-report-generator';
 import type { Patient, Assessment, AgentStatus } from '../../../shared/schema';
 import { apiRequest } from '@/lib/queryClient';
 
@@ -82,49 +84,50 @@ export default function Dashboard() {
     assessmentData: assessment
   });
 
-  const generateReportHTML = (patient: Patient, assessment: Assessment) => {
-    return `
-      <html>
-        <head>
-          <title>围术期风险评估报告</title>
-          <meta charset="utf-8">
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; }
-            h1, h2 { color: #333; }
-            .patient-info { background: #f5f5f5; padding: 15px; margin: 10px 0; }
-            .risk-section { margin: 20px 0; }
-            .high-risk { color: #dc2626; }
-            .medium-risk { color: #ea580c; }
-            .low-risk { color: #16a34a; }
-          </style>
-        </head>
-        <body>
-          <h1>围术期风险评估报告</h1>
-          <div class="patient-info">
-            <h2>患者信息</h2>
-            <p><strong>姓名:</strong> ${patient.name}</p>
-            <p><strong>年龄:</strong> ${patient.age}岁</p>
-            <p><strong>性别:</strong> ${patient.gender}</p>
-            <p><strong>手术类型:</strong> ${patient.surgeryType}</p>
-            <p><strong>ASA分级:</strong> ${patient.asaClass}</p>
-          </div>
-          
-          <div class="risk-section">
-            <h2>风险评估结果</h2>
-            <p><strong>总体风险等级:</strong> <span class="${assessment.overallRisk}-risk">${assessment.overallRisk === 'high' ? '高风险' : assessment.overallRisk === 'medium' ? '中等风险' : '低风险'}</span></p>
-          </div>
-          
-          ${assessment.recommendations && assessment.recommendations.length > 0 ? `
-          <div class="risk-section">
-            <h2>建议</h2>
-            <ul>
-              ${assessment.recommendations.map((rec: string) => `<li>${rec}</li>`).join('')}
-            </ul>
-          </div>
-          ` : ''}
-        </body>
-      </html>
-    `;
+  // Enhanced PDF export function using new report generator
+  const handleExportPDF = (patient: Patient, assessment: Assessment) => {
+    const reportHTML = generateEnhancedReportHTML(patient, assessment);
+    const blob = new Blob([reportHTML], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${patient.name}_围术期风险评估报告.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "报告导出成功",
+      description: "增强版风险评估报告已保存为HTML文件",
+    });
+  };
+
+  const handleShareReport = async (patient: Patient, assessment: Assessment) => {
+    const reportHTML = generateEnhancedReportHTML(patient, assessment);
+    
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: `${patient.name} - 围术期风险评估报告`,
+          text: `患者${patient.name}的详细围术期风险评估报告`,
+          url: window.location.href
+        });
+      } else {
+        await navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: "链接已复制",
+          description: "报告链接已复制到剪贴板",
+        });
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+      toast({
+        title: "分享失败",
+        description: "无法分享报告，请稍后重试",
+        variant: "destructive",
+      });
+    }
   };
 
   // Create demo data mutation
@@ -236,51 +239,7 @@ export default function Dashboard() {
     }
   };
 
-  const handleExportPDF = (patient: Patient, assessment: Assessment) => {
-    const reportHTML = generateReportHTML(patient, assessment);
-    const blob = new Blob([reportHTML], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${patient.name}_围术期风险评估报告.html`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    toast({
-      title: "报告导出成功",
-      description: "风险评估报告已保存为HTML文件",
-    });
-  };
 
-  const handleShareReport = async (patient: Patient, assessment: Assessment) => {
-    const reportHTML = generateReportHTML(patient, assessment);
-    
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: `${patient.name} - 围术期风险评估报告`,
-          text: `患者${patient.name}的围术期风险评估报告`,
-          url: window.location.href
-        });
-      } else {
-        // Fallback for browsers that don't support Web Share API
-        await navigator.clipboard.writeText(window.location.href);
-        toast({
-          title: "链接已复制",
-          description: "报告链接已复制到剪贴板",
-        });
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-      toast({
-        title: "分享失败",
-        description: "无法分享报告，请稍后重试",
-        variant: "destructive",
-      });
-    }
-  };
 
   // Loading state
   if (patientLoading || assessmentLoading) {
@@ -480,57 +439,15 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Assessment Summary */}
-        {assessment?.status === 'completed' && (
+        {/* Enhanced Assessment Report */}
+        {assessment?.status === 'completed' && patient && (
           <div className="w-full">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  评估总结
-                  <Badge variant={
-                    assessment.overallRisk === 'high' ? 'destructive' : 
-                    assessment.overallRisk === 'medium' ? 'secondary' : 'default'
-                  }>
-                    {assessment.overallRisk === 'high' ? '高风险' : 
-                     assessment.overallRisk === 'medium' ? '中等风险' : '低风险'}
-                  </Badge>
-                </CardTitle>
-                <CardDescription>AI综合评估结果与建议</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {assessment.recommendations && assessment.recommendations.length > 0 && (
-                  <div>
-                    <h4 className="font-semibold mb-2">临床建议：</h4>
-                    <ul className="list-disc list-inside space-y-1">
-                      {assessment.recommendations.map((recommendation: string, index: number) => (
-                        <li key={index} className="text-sm">{recommendation}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                
-                <Separator />
-                
-                <div className="flex gap-2">
-                  {patient && (
-                    <>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleExportPDF(patient, assessment)}
-                      >
-                        导出报告
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleShareReport(patient, assessment)}
-                      >
-                        分享报告
-                      </Button>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <EnhancedAssessmentReport
+              patient={patient}
+              assessment={assessment}
+              onExportPDF={() => handleExportPDF(patient, assessment)}
+              onShareReport={() => handleShareReport(patient, assessment)}
+            />
           </div>
         )}
       </div>
