@@ -115,7 +115,7 @@ export type InsertMedicalReport = z.infer<typeof insertMedicalReportSchema>;
 
 // Additional types for complex data structures
 export interface RiskFactor {
-  type: 'airway' | 'cardiovascular' | 'thrombosis' | 'ponv' | 'other';
+  type: 'airway' | 'cardiovascular' | 'thrombosis' | 'ponv' | 'bleeding' | 'renal' | 'hepatic' | 'metabolic' | 'other';
   level: 'low' | 'medium' | 'high';
   description: string;
   score?: number;

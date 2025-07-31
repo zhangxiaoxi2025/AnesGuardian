@@ -110,7 +110,7 @@ export class SimpleAgentOrchestrator {
       await this.updateAgentStatus('guideline_consultant', 'active', 80, '检索临床指南');
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const guidelines = this.generateClinicalGuidelines(enhancedPatientData.surgeryType, enhancedPatientData);
+      const guidelines = this.generateClinicalGuidelines(enhancedPatientData.surgeryType || '', enhancedPatientData);
       console.log('🔍 生成的临床指南:', guidelines);
       await this.updateAgentStatus('guideline_consultant', 'completed', 100, `匹配${guidelines.length}项相关指南`);
 
@@ -161,7 +161,7 @@ export class SimpleAgentOrchestrator {
       // Update all active agents to failed state
       Object.keys(this.agentStatus).forEach(agentName => {
         if (this.agentStatus[agentName].status === 'active') {
-          this.updateAgentStatus(agentName, 'failed', this.agentStatus[agentName].progress, `错误: ${error.message}`);
+          this.updateAgentStatus(agentName, 'failed', this.agentStatus[agentName].progress, `错误: ${error instanceof Error ? error.message : String(error)}`);
         }
       });
 
@@ -559,7 +559,7 @@ export class SimpleAgentOrchestrator {
   }
 
   private calculateOverallRisk(riskFactors: RiskFactor[]): string {
-    const totalScore = riskFactors.reduce((sum, factor) => sum + factor.score, 0);
+    const totalScore = riskFactors.reduce((sum, factor) => sum + (factor.score || 0), 0);
     const highRiskCount = riskFactors.filter(f => f.level === 'high').length;
     
     if (highRiskCount >= 2 || totalScore >= 8) {
