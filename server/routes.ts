@@ -44,7 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const patient = await storage.createPatient(result.data);
       console.log("患者创建成功:", patient);
       res.status(201).json(patient);
-    } catch (error: any) {
+    } catch (error) {
       console.error("创建患者时发生错误:", error);
       res.status(500).json({ message: "Failed to create patient", error: error.message });
     }
@@ -204,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         res.json({ message: "New assessment started successfully", assessmentId: assessment.id });
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("Reset assessment error:", error);
       res.status(500).json({ message: "Failed to reset assessment" });
     }
@@ -251,7 +251,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         enhancementData,
         success: true 
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ 药物信息增强失败:", error);
       res.status(500).json({ 
         message: "药物信息增强失败", 
@@ -284,7 +284,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         guidelines,
         success: true 
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ 术前停药建议生成失败:", error);
       res.status(500).json({ 
         message: "术前停药建议生成失败", 
@@ -318,7 +318,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         analysis,
         success: true 
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ 麻醉药物相互作用分析失败:", error);
       res.status(500).json({ 
         message: "麻醉药物相互作用分析失败", 
@@ -359,7 +359,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('✅ 药物相互作用分析完成，发现', interactions?.length || 0, '个相互作用');
       
       res.json({ interactions: interactions || [] });
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ 药物相互作用分析失败:", error);
       res.status(500).json({ 
         message: "药物相互作用分析失败", 
@@ -735,134 +735,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (!req.file) {
             return res.status(400).json({ message: "No image file was uploaded." });
         }
-        console.log("📷 [医疗记录识别] 接收图像:", req.file.originalname, `(${(req.file.size / 1024).toFixed(1)}KB)`);
+        console.log("Received image for processing:", req.file.originalname);
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
         const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
 
-        const textPrompt = `你是一名具有30年经验的主任医师和医疗信息专家。请仔细分析这张病历图片，提取关键医疗信息。
-
-请以严格的JSON格式返回：
-{
-  "summary": "病史总结（包含主要诊断、症状、手术史等关键信息）",
-  "medications": ["用药1", "用药2", "用药3"]
-}
-
-要求：
-1. summary字段要详细完整，包含所有重要医疗信息
-2. medications数组要包含图片中所有提到的药物名称
-3. 确保JSON格式正确，不要包含markdown标记
-4. 如果某些信息不清楚，在summary中注明"信息不清"`;
+        const textPrompt = "你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并以JSON格式返回以下信息：1. 'summary': 对病史的简要总结，包含主要诊断和症状。2. 'medications': 一个包含所有当前用药名称的字符串数组。请确保提取的信息准确无误。";
         
-        // 智能重试机制
-        let result;
-        let attempt = 0;
-        const maxAttempts = 3;
-        
-        while (attempt < maxAttempts) {
-          attempt++;
-          console.log(`📷 [医疗记录识别] 第 ${attempt} 次尝试...`);
-          
-          try {
-            result = await model.generateContent({
-              contents: [{
-                role: "user",
-                parts: [
-                  { text: textPrompt },
-                  imagePart
-                ]
-              }]
-            });
-            
-            console.log(`📷 [医疗记录识别] 第 ${attempt} 次尝试成功`);
-            break;
-            
-          } catch (apiError: any) {
-            console.error(`📷 [医疗记录识别] 第 ${attempt} 次尝试失败:`, apiError.message);
-            
-            if (apiError.status === 503 && attempt < maxAttempts) {
-              // API过载，等待后重试
-              const delay = Math.pow(2, attempt - 1) * 1000; // 1s, 2s, 4s
-              console.log(`📷 [医疗记录识别] API过载，${delay/1000}秒后重试...`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              continue;
-            }
-            
-            if (attempt === maxAttempts) {
-              throw new Error(`AI服务暂时过载，已重试${maxAttempts}次仍失败。请稍后再试。`);
-            }
-          }
-        }
-
-        if (!result) {
-          throw new Error("AI分析失败，请稍后重试");
-        }
+        const result = await model.generateContent({
+          contents: [{
+            role: "user",
+            parts: [
+              { text: textPrompt },
+              imagePart
+            ]
+          }]
+        });
 
         const responseText = result.response.text();
-        console.log("📷 [医疗记录识别] AI原始响应长度:", responseText.length);
-        console.log("📷 [医疗记录识别] AI原始响应:", responseText.substring(0, 200) + "...");
+        console.log("AI Raw Response:", responseText);
         
-        // 解析JSON响应
+        // Parse JSON response
         let data;
         try {
-          // 先尝试直接解析
           data = JSON.parse(responseText);
         } catch (parseError) {
-          console.log("📷 [医疗记录识别] 直接JSON解析失败，尝试提取...");
-          
-          // 尝试从markdown中提取JSON
+          // Try to extract JSON from markdown if needed
           const jsonMatch = responseText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
           if (jsonMatch) {
-            console.log("📷 [医疗记录识别] 从markdown提取JSON成功");
             data = JSON.parse(jsonMatch[1]);
           } else {
-            // 尝试查找JSON对象
-            const jsonStart = responseText.indexOf('{');
-            const jsonEnd = responseText.lastIndexOf('}');
-            if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
-              const jsonStr = responseText.substring(jsonStart, jsonEnd + 1);
-              console.log("📷 [医疗记录识别] 尝试提取JSON对象:", jsonStr.substring(0, 100) + "...");
-              data = JSON.parse(jsonStr);
-            } else {
-              throw new Error("无法从AI响应中解析出有效的JSON数据");
-            }
+            throw new Error("Unable to parse AI response as JSON");
           }
         }
         
-        // 验证响应数据结构
-        if (!data.summary || !Array.isArray(data.medications)) {
-          console.warn("📷 [医疗记录识别] 响应数据结构不完整，尝试修复...");
-          data = {
-            summary: data.summary || "AI分析结果格式异常，请手动填写病史信息",
-            medications: Array.isArray(data.medications) ? data.medications : []
-          };
-        }
-        
-        console.log("📷 [医疗记录识别] 最终解析结果:", {
-          summaryLength: data.summary.length,
-          medicationsCount: data.medications.length,
-          medications: data.medications
-        });
-        
         res.status(200).json(data);
-        
-    } catch (error: any) {
-        console.error("📷 [医疗记录识别] 处理失败:", error);
-        
-        // 根据错误类型提供不同的错误信息
-        let errorMessage = "医疗记录识别失败";
-        if (error.message?.includes("过载")) {
-          errorMessage = "AI服务暂时繁忙，请稍后重试";
-        } else if (error.message?.includes("JSON")) {
-          errorMessage = "AI响应格式异常，请重新上传图片";
-        } else if (error.status === 503) {
-          errorMessage = "AI服务暂时不可用，请稍后重试";
-        }
-        
-        res.status(500).json({ 
-          message: errorMessage,
-          details: process.env.NODE_ENV === 'development' ? error.message : undefined
-        });
+    } catch (error) {
+        console.error("Image processing failed:", error);
+        res.status(500).json({ message: "AI image recognition failed." });
     }
   });
 

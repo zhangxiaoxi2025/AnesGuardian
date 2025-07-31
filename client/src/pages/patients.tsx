@@ -233,14 +233,6 @@ export default function Patients() {
                               <Label className="text-sm font-medium text-gray-700">ASA分级</Label>
                               <p className="text-gray-900">ASA {selectedPatient.asaClass}</p>
                             </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">Mallampati分级</Label>
-                              <p className="text-gray-900">{selectedPatient.mallampatiGrade || '未评估'}</p>
-                            </div>
-                            <div>
-                              <Label className="text-sm font-medium text-gray-700">心功能分级</Label>
-                              <p className="text-gray-900">{selectedPatient.cardiacFunction || '未评估'}</p>
-                            </div>
                             <div className="col-span-2">
                               <Label className="text-sm font-medium text-gray-700">手术类型</Label>
                               <p className="text-gray-900">{selectedPatient.surgeryType}</p>
