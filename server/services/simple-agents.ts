@@ -75,6 +75,16 @@ export class SimpleAgentOrchestrator {
         throw new Error('Patient not found');
       }
 
+      // Get medical reports for enhanced analysis
+      const medicalReports = await storage.getMedicalReportsByPatientId(patientId);
+      console.log(`🔍 获取到 ${medicalReports.length} 份医疗报告用于增强分析`);
+      
+      // Create enhanced patient data with medical reports
+      const enhancedPatientData = {
+        ...patient,
+        medicalReports: medicalReports
+      };
+
       // Step 1: EMR Extraction
       await this.updateAgentStatus('emr_extractor', 'active', 25, '提取病历信息');
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -84,7 +94,7 @@ export class SimpleAgentOrchestrator {
       await this.updateAgentStatus('risk_assessor', 'active', 40, '分析风险因素');
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const riskFactors = this.generateRiskFactorsFromPatientData(patient);
+      const riskFactors = this.generateRiskFactorsFromPatientData(enhancedPatientData);
       console.log('🔍 生成的风险因素:', riskFactors);
       await this.updateAgentStatus('risk_assessor', 'completed', 100, `发现${riskFactors.length}项风险因素`);
 
@@ -92,7 +102,7 @@ export class SimpleAgentOrchestrator {
       await this.updateAgentStatus('drug_analyzer', 'active', 60, '分析药物相互作用');
       await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const drugInteractions = this.generateDrugInteractions(patient.medications || []);
+      const drugInteractions = this.generateDrugInteractions(enhancedPatientData.medications || [], enhancedPatientData.medicalReports);
       console.log('🔍 生成的药物相互作用:', drugInteractions);
       await this.updateAgentStatus('drug_analyzer', 'completed', 100, `检测到${drugInteractions.length}项交互警示`);
 
@@ -100,7 +110,7 @@ export class SimpleAgentOrchestrator {
       await this.updateAgentStatus('guideline_consultant', 'active', 80, '检索临床指南');
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      const guidelines = this.generateClinicalGuidelines(patient.surgeryType, patient);
+      const guidelines = this.generateClinicalGuidelines(enhancedPatientData.surgeryType, enhancedPatientData);
       console.log('🔍 生成的临床指南:', guidelines);
       await this.updateAgentStatus('guideline_consultant', 'completed', 100, `匹配${guidelines.length}项相关指南`);
 
@@ -174,6 +184,16 @@ export class SimpleAgentOrchestrator {
         description: '高龄患者，心血管储备功能下降',
         score: 2,
         recommendations: ['术前心电图评估', '术中密切监测血压心率']
+      });
+    }
+
+    // Enhanced analysis with medical reports
+    if (patient.medicalReports && patient.medicalReports.length > 0) {
+      console.log('🔍 增强风险分析 - 分析医疗报告:', patient.medicalReports.length);
+      patient.medicalReports.forEach((report: any) => {
+        const reportRisks = this.analyzeReportRisks(report);
+        console.log(`🔍 报告 ${report.reportType} 识别风险:`, reportRisks.length);
+        riskFactors.push(...reportRisks);
       });
     }
 
@@ -268,7 +288,93 @@ export class SimpleAgentOrchestrator {
     return riskFactors;
   }
 
-  private generateDrugInteractions(medications: string[]): DrugInteraction[] {
+  private analyzeReportRisks(report: any): RiskFactor[] {
+    const risks: RiskFactor[] = [];
+    const reportType = report.reportType;
+    const extractedText = report.extractedText || '';
+    const analyzedData = report.analyzedData || {};
+
+    console.log(`🔍 分析 ${reportType} 报告风险:`, { extractedText: extractedText.substring(0, 100), analyzedData });
+
+    // ECG (心电图) 风险分析
+    if (reportType === 'ecg') {
+      if (extractedText.includes('ST段') || extractedText.includes('T波') || extractedText.includes('心律不齐') || extractedText.includes('房颤')) {
+        risks.push({
+          type: 'cardiovascular',
+          level: 'high',
+          description: '心电图显示异常，存在心血管风险',
+          score: 3,
+          recommendations: ['心脏科会诊', '术前心功能评估', '术中心电监护', '准备抗心律失常药物']
+        });
+      }
+      if (extractedText.includes('窦性心律') && !extractedText.includes('异常')) {
+        risks.push({
+          type: 'cardiovascular',
+          level: 'low',
+          description: '心电图显示窦性心律，心血管状况良好',
+          score: 0,
+          recommendations: ['维持现有心电监护']
+        });
+      }
+    }
+
+    // 凝血功能 风险分析
+    if (reportType === 'coagulation') {
+      if (extractedText.includes('延长') || extractedText.includes('异常') || extractedText.includes('↑') || extractedText.includes('升高')) {
+        risks.push({
+          type: 'bleeding',
+          level: 'high',
+          description: '凝血功能异常，出血风险增加',
+          score: 3,
+          recommendations: ['血液科会诊', '凝血因子检查', '准备凝血药物', '避免椎管内麻醉']
+        });
+      }
+      if (analyzedData.ptInr && parseFloat(analyzedData.ptInr) > 1.5) {
+        risks.push({
+          type: 'bleeding',
+          level: 'high', 
+          description: `INR值${analyzedData.ptInr}，抗凝过度风险`,
+          score: 3,
+          recommendations: ['调整抗凝药物', '维生素K准备', '监测凝血指标']
+        });
+      }
+    }
+
+    // 生化检查 风险分析  
+    if (reportType === 'biochemistry') {
+      if (extractedText.includes('肌酐') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'renal',
+          level: 'medium',
+          description: '肌酐升高，肾功能不全风险',
+          score: 2,
+          recommendations: ['肾内科会诊', '调整药物剂量', '监测尿量', '避免肾毒性药物']
+        });
+      }
+      if (extractedText.includes('转氨酶') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'hepatic',
+          level: 'medium',
+          description: '转氨酶升高，肝功能异常',
+          score: 2,
+          recommendations: ['肝病科会诊', '调整麻醉药物', '避免肝毒性药物', '术后肝功能监测']
+        });  
+      }
+      if (extractedText.includes('血糖') && (extractedText.includes('升高') || extractedText.includes('↑'))) {
+        risks.push({
+          type: 'metabolic',
+          level: 'medium',
+          description: '血糖升高，围术期血糖管理需要关注',
+          score: 2,
+          recommendations: ['内分泌科会诊', '胰岛素准备', '术中血糖监测', '感染预防']
+        });
+      }
+    }
+
+    return risks;
+  }
+
+  private generateDrugInteractions(medications: string[], medicalReports?: any[]): DrugInteraction[] {
     const interactions: DrugInteraction[] = [];
 
     console.log('🔍 药物相互作用分析 - 输入药物:', medications);
@@ -367,23 +473,34 @@ export class SimpleAgentOrchestrator {
         severity: 'major',
         summary: '氟哌噻吨美利曲辛与麻醉药物存在重要相互作用',
         description: '氟哌噻吨美利曲辛含有抗精神病药氟哌噻吨和三环抗抑郁药美利曲辛，与麻醉药物联合使用可能导致：1）中枢神经系统抑制增强，苏醒延迟；2）QT间期延长，心律失常风险增加；3）血压不稳定，低血压风险；4）抗胆碱能作用增强，口干、便秘等副作用加重。',
-        recommendations: [
-          '术前心电图评估QT间期',
-          '术中持续心电监护',
-          '谨慎使用血管活性药物',
-          '延长术后观察时间',
-          '术前考虑逐渐减量停药3-7天',
-          '准备阿托品等抗胆碱能药物拮抗剂'
-        ]
+        recommendations: ['术前心电图评估QT间期', '术中持续心电监护', '谨慎使用血管活性药物', '延长术后观察时间', '术前考虑逐渐减量停药3-7天', '准备阿托品等抗胆碱能药物拮抗剂']
       });
     }
 
-    // 检查ACE抑制剂/ARB类药物
-    const hasACEI = medications.some(med => 
-      med.includes('依那普利') || med.includes('卡托普利') || med.includes('氯沙坦') || med.includes('缬沙坦') || med.includes('科素亚')
-    );
+    // Enhanced analysis with medical reports
+    if (medicalReports && medicalReports.length > 0) {
+      console.log('🔍 增强药物相互作用分析 - 结合医疗报告:', medicalReports.length);
+      medicalReports.forEach(report => {
+        if (report.reportType === 'coagulation' && hasAspirin) {
+          // 如果有凝血报告且服用阿司匹林，增强风险评估
+          const coagText = report.extractedText || '';
+          if (coagText.includes('延长') || coagText.includes('异常')) {
+            // 找到现有的阿司匹林相互作用并升级严重程度
+            const aspirinInteraction = interactions.find(i => i.id === 'aspirin-anesthesia-interaction');
+            if (aspirinInteraction) {
+              aspirinInteraction.summary = '阿司匹林+凝血功能异常，出血风险极高';
+              aspirinInteraction.description += ' 凝血功能检查显示异常，进一步增加了出血风险。';
+              aspirinInteraction.recommendations.unshift('紧急血液科会诊');
+            }
+          }
+        }
+      });
+    }
 
-    if (hasACEI) {
+    return interactions;
+  }
+
+  private generateClinicalGuidelines(surgeryType: string, patient: any): ClinicalGuideline[] {
       interactions.push({
         id: 'acei-arb-anesthesia-interaction',
         drugs: medications.filter(med => 
