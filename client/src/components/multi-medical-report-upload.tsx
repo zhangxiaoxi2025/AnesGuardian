@@ -246,6 +246,11 @@ export default function MultiMedicalReportUpload({
 
   // 执行延迟上传（当patientId可用时调用）
   const executeDelayedUploads = (newPatientId: number) => {
+    if (!newPatientId || typeof newPatientId !== 'number') {
+      console.error('Invalid patientId for delayed upload:', newPatientId);
+      return;
+    }
+    
     const pendingItems = uploadItems.filter(item => item.status === 'pending');
     
     if (pendingItems.length === 0) return;

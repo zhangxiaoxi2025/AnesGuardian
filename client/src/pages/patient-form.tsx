@@ -62,19 +62,19 @@ export default function PatientForm() {
         gender: data.gender,
         surgeryType: data.surgeryType,
         asaClass: data.asaClass,
-        medicalHistory: data.medicalHistoryText ? data.medicalHistoryText.split(',').map(s => s.trim()) : [],
-        medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()) : [],
-        allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()) : [],
+        medicalHistory: data.medicalHistoryText ? data.medicalHistoryText.split(',').map(s => s.trim()).filter(s => s.length > 0) : [],
+        medications: data.medicationsText ? data.medicationsText.split(',').map(s => s.trim()).filter(s => s.length > 0) : [],
+        allergies: data.allergiesText ? data.allergiesText.split(',').map(s => s.trim()).filter(s => s.length > 0) : [],
         vitalSigns: {
-          weight: data.weight,
-          height: data.height,
-          bmi: data.weight && data.height ? parseFloat((data.weight / Math.pow(data.height / 100, 2)).toFixed(1)) : 0,
+          weight: data.weight.toString(),
+          height: data.height.toString(),
+          bmi: data.weight && data.height ? (data.weight / Math.pow(data.height / 100, 2)).toFixed(1) : "0",
         },
         labResults: {},
       };
 
       const response = await apiRequest('POST', '/api/patients', patientData);
-      return response;
+      return response.json();
     },
     onSuccess: (newPatient) => {
       toast({
@@ -84,7 +84,7 @@ export default function PatientForm() {
       queryClient.invalidateQueries({ queryKey: ['/api/patients'] });
       
       // 如果有待上传的医疗报告，执行延迟上传
-      if (delayedUploadContext && delayedUploadContext.uploadItems.length > 0) {
+      if (delayedUploadContext && delayedUploadContext.uploadItems.length > 0 && newPatient && newPatient.id) {
         delayedUploadContext.executeDelayedUploads(newPatient.id);
       }
       
