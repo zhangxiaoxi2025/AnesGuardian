@@ -71,6 +71,7 @@ export default function ClinicalGuidelineList() {
         ? '/api/clinical-guidelines' 
         : `/api/clinical-guidelines?category=${selectedCategory}`;
       const response = await apiRequest(url);
+      console.log("📡 前端收到指南数据:", response);
       // Ensure we return an array
       return Array.isArray(response) ? response : [];
     },

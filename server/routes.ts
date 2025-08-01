@@ -488,7 +488,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("📊 从存储中获取的指南数量:", guidelines.length);
       console.log("📋 指南列表:", guidelines.map(g => ({ id: g.id, title: g.title })));
       
-      res.json(guidelines);
+      // Transform data to match frontend expectations
+      const transformedGuidelines = guidelines.map(guideline => ({
+        id: guideline.id,
+        title: guideline.title,
+        organization: guideline.organization,
+        year: guideline.year,
+        category: guideline.category,
+        description: guideline.description || "",
+        keywords: guideline.keywords || [],
+        status: guideline.status,
+        createdAt: guideline.createdAt,
+        updatedAt: guideline.updatedAt
+      }));
+      
+      console.log("📤 发送给前端的数据:", transformedGuidelines);
+      res.json(transformedGuidelines);
     } catch (error) {
       console.error("Failed to fetch clinical guidelines:", error);
       res.status(500).json({ message: "Failed to fetch clinical guidelines" });
