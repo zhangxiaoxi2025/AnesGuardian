@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import multer from "multer";
 import { storage } from "./storage";
-import { insertPatientSchema, insertAssessmentSchema, insertMedicalReportSchema } from "@shared/schema";
+import { insertPatientSchema, insertAssessmentSchema, insertMedicalReportSchema, insertClinicalGuidelineDocumentSchema } from "@shared/schema";
 import { SimpleAgentOrchestrator } from "./services/simple-agents";
 import { processMedicalReport } from "./services/medical-report-analyzer";
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -952,6 +952,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
         console.error("Image processing failed:", error);
         res.status(500).json({ message: "AI image recognition failed." });
+    }
+  });
+
+  // === Clinical Guidelines Routes ===
+  
+  // Get all clinical guidelines
+  app.get("/api/clinical-guidelines", async (req, res) => {
+    try {
+      const { category } = req.query;
+      let guidelines;
+      
+      if (category && typeof category === 'string') {
+        guidelines = await storage.getClinicalGuidelinesByCategory(category);
+      } else {
+        guidelines = await storage.getAllClinicalGuidelines();
+      }
+      
+      res.json(guidelines);
+    } catch (error) {
+      console.error("Failed to fetch clinical guidelines:", error);
+      res.status(500).json({ message: "Failed to fetch clinical guidelines" });
+    }
+  });
+
+  // Get specific clinical guideline
+  app.get("/api/clinical-guidelines/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const guideline = await storage.getClinicalGuideline(id);
+      
+      if (!guideline) {
+        return res.status(404).json({ message: "Clinical guideline not found" });
+      }
+      
+      res.json(guideline);
+    } catch (error) {
+      console.error("Failed to fetch clinical guideline:", error);
+      res.status(500).json({ message: "Failed to fetch clinical guideline" });
+    }
+  });
+
+  // Upload and create clinical guideline
+  app.post("/api/clinical-guidelines", upload.single('file'), async (req, res) => {
+    try {
+      const { title, organization, year, category, description } = req.body;
+      const file = req.file;
+      
+      // Validate required fields
+      if (!title || !organization || !year || !category) {
+        return res.status(400).json({ 
+          message: "Missing required fields: title, organization, year, category" 
+        });
+      }
+
+      let extractedText = '';
+      let fileType = '';
+      let originalFileName = '';
+
+      if (file) {
+        originalFileName = file.originalname;
+        fileType = file.mimetype.includes('image') ? 'image' : 
+                  file.mimetype.includes('pdf') ? 'pdf' : 'text';
+        
+        // Extract text based on file type
+        const { documentParserService } = await import("./services/document-parser");
+        
+        if (fileType === 'image') {
+          const base64Image = file.buffer.toString('base64');
+          extractedText = await documentParserService.extractTextFromImage(base64Image);
+        } else if (fileType === 'pdf') {
+          extractedText = await documentParserService.extractTextFromPDF(file.buffer.toString());
+        } else {
+          extractedText = file.buffer.toString('utf-8');
+        }
+      } else if (req.body.content) {
+        // Manual text input
+        extractedText = req.body.content;
+        fileType = 'text';
+      } else {
+        return res.status(400).json({ message: "Either file upload or content text is required" });
+      }
+
+      // AI analysis of the content
+      const { documentParserService } = await import("./services/document-parser");
+      const aiAnalysis = await documentParserService.analyzeGuidelineContent(extractedText, {
+        title,
+        organization,
+        category
+      });
+
+      // Create guideline document
+      const guidelineData = {
+        title,
+        organization,
+        year: parseInt(year),
+        category,
+        description: description || aiAnalysis.summary,
+        originalFileName,
+        fileType,
+        extractedText,
+        structuredData: aiAnalysis.structuredData,
+        keywords: aiAnalysis.keywords,
+        sections: aiAnalysis.sections,
+        status: 'active' as const
+      };
+
+      const validationResult = insertClinicalGuidelineDocumentSchema.safeParse(guidelineData);
+      if (!validationResult.success) {
+        console.error("Guideline validation failed:", validationResult.error);
+        return res.status(400).json({ 
+          message: "Invalid guideline data", 
+          errors: validationResult.error.issues 
+        });
+      }
+
+      const guideline = await storage.createClinicalGuideline(validationResult.data);
+
+      // Create sections in the database
+      for (const section of aiAnalysis.sections) {
+        await storage.createGuidelineSection({
+          guidelineId: guideline.id,
+          sectionTitle: section.title,
+          content: section.content,
+          sectionType: section.type,
+          relevanceKeywords: section.keywords || [],
+          priority: section.priority || 3
+        });
+      }
+
+      console.log(`✅ Clinical guideline created: ${title}`);
+      res.status(201).json(guideline);
+      
+    } catch (error) {
+      console.error("Failed to create clinical guideline:", error);
+      res.status(500).json({ 
+        message: "Failed to create clinical guideline", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Search guidelines based on patient context
+  app.post("/api/clinical-guidelines/search", async (req, res) => {
+    try {
+      const { keywords, patientContext } = req.body;
+      
+      if (!Array.isArray(keywords)) {
+        return res.status(400).json({ message: "Keywords must be an array" });
+      }
+
+      // Get all guidelines
+      const allGuidelines = await storage.getAllClinicalGuidelines();
+      
+      // Use smart matching if patient context provided
+      const { documentParserService } = await import("./services/document-parser");
+      
+      let matchedGuidelines;
+      if (patientContext) {
+        matchedGuidelines = await documentParserService.matchGuidelinesForPatient(
+          allGuidelines, 
+          patientContext
+        );
+      } else {
+        matchedGuidelines = await storage.searchClinicalGuidelines(keywords);
+      }
+
+      res.json(matchedGuidelines);
+      
+    } catch (error) {
+      console.error("Failed to search clinical guidelines:", error);
+      res.status(500).json({ 
+        message: "Failed to search clinical guidelines", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Update clinical guideline
+  app.put("/api/clinical-guidelines/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updateData = req.body;
+      
+      const updatedGuideline = await storage.updateClinicalGuideline(id, updateData);
+      
+      if (!updatedGuideline) {
+        return res.status(404).json({ message: "Clinical guideline not found" });
+      }
+      
+      res.json(updatedGuideline);
+    } catch (error) {
+      console.error("Failed to update clinical guideline:", error);
+      res.status(500).json({ message: "Failed to update clinical guideline" });
+    }
+  });
+
+  // Delete clinical guideline
+  app.delete("/api/clinical-guidelines/:id", async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const deleted = await storage.deleteClinicalGuideline(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Clinical guideline not found" });
+      }
+      
+      res.json({ message: "Clinical guideline deleted successfully" });
+    } catch (error) {
+      console.error("Failed to delete clinical guideline:", error);
+      res.status(500).json({ message: "Failed to delete clinical guideline" });
+    }
+  });
+
+  // Get guideline sections
+  app.get("/api/clinical-guidelines/:id/sections", async (req, res) => {
+    try {
+      const guidelineId = parseInt(req.params.id);
+      const sections = await storage.getGuidelineSectionsByGuidelineId(guidelineId);
+      res.json(sections);
+    } catch (error) {
+      console.error("Failed to fetch guideline sections:", error);
+      res.status(500).json({ message: "Failed to fetch guideline sections" });
     }
   });
 

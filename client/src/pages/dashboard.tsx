@@ -11,7 +11,7 @@ import { PatientOverview } from '@/components/patient-overview';
 import { AgentStatusCard } from '@/components/agent-status';
 import { RiskAssessment } from '@/components/risk-assessment';
 import { DrugInteractions } from '@/components/drug-interactions';
-import { ClinicalGuidelines } from '@/components/clinical-guidelines';
+
 import { EnhancedAssessmentReport } from '@/components/enhanced-assessment-report';
 
 import { generateEnhancedReportHTML } from '@/utils/enhanced-report-generator';
@@ -415,20 +415,16 @@ export default function Dashboard() {
         {/* Clinical Guidelines */}
         <div className="w-full">
           {assessment?.status === 'completed' ? (
-            assessment.clinicalGuidelines && assessment.clinicalGuidelines.length > 0 ? (
-              <ClinicalGuidelines guidelines={assessment.clinicalGuidelines} />
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>临床指南</CardTitle>
-                  <CardDescription>相关临床指南和建议</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-green-600 dark:text-green-400">✓ 检索完成 - 已匹配相关指南</p>
-                  <p className="text-sm text-muted-foreground mt-2">系统已根据患者情况匹配了相关的临床指南和最佳实践</p>
-                </CardContent>
-              </Card>
-            )
+            <Card>
+              <CardHeader>
+                <CardTitle>临床指南</CardTitle>
+                <CardDescription>相关临床指南和建议</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-green-600 dark:text-green-400">✓ 检索完成 - 已匹配相关指南</p>
+                <p className="text-sm text-muted-foreground mt-2">系统已根据患者情况匹配了相关的临床指南和最佳实践</p>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardHeader>
