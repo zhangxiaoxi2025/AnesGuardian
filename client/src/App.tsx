@@ -9,7 +9,7 @@ import Patients from "@/pages/patients";
 import Agents from "@/pages/agents";
 import Chat from "@/pages/chat";
 import DrugInteractions from "@/pages/drug-interactions";
-import GuidelineManagement from "@/pages/guideline-management";
+import ClinicalGuidelines from "@/pages/clinical-guidelines";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -25,8 +25,8 @@ function Router() {
       <Route path="/risk" component={Dashboard} />
       <Route path="/drug-interactions" component={DrugInteractions} />
       <Route path="/drugs" component={DrugInteractions} />
-      <Route path="/clinical-guidelines" component={GuidelineManagement} />
-      <Route path="/guidelines" component={GuidelineManagement} />
+      <Route path="/clinical-guidelines" component={ClinicalGuidelines} />
+      <Route path="/guidelines" component={ClinicalGuidelines} />
       <Route component={NotFound} />
     </Switch>
   );

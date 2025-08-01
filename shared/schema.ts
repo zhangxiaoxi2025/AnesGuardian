@@ -67,37 +67,6 @@ export const medicalReports = pgTable("medical_reports", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
-// 临床指南文档表
-export const clinicalGuidelineDocuments = pgTable("clinical_guideline_documents", {
-  id: serial("id").primaryKey(),
-  title: text("title").notNull(),
-  organization: text("organization").notNull(),
-  year: integer("year").notNull(),
-  category: text("category").notNull(), // 'anesthesia', 'surgery', 'cardiology', 'general', etc.
-  description: text("description"),
-  originalFileName: text("original_file_name"),
-  fileType: text("file_type"), // 'pdf', 'doc', 'docx', 'txt'
-  extractedText: text("extracted_text"), // 从文档提取的完整文本
-  structuredData: json("structured_data").$type<Record<string, any>>().default({}).notNull(), // AI结构化的数据
-  keywords: json("keywords").$type<string[]>().default([]).notNull(), // 关键词，用于匹配
-  sections: json("sections").$type<any[]>().default([]).notNull(), // 指南章节
-  status: text("status").default("active").notNull(), // 'active', 'inactive', 'processing'
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-});
-
-// 指南章节表 (可以单独存储以便更好的检索)
-export const guidelineSections = pgTable("guideline_sections", {
-  id: serial("id").primaryKey(),
-  guidelineId: integer("guideline_id").references(() => clinicalGuidelineDocuments.id).notNull(),
-  sectionTitle: text("section_title").notNull(),
-  content: text("content").notNull(),
-  sectionType: text("section_type"), // 'introduction', 'recommendations', 'contraindications', 'procedures', etc.
-  relevanceKeywords: json("relevance_keywords").$type<string[]>().default([]).notNull(),
-  priority: integer("priority").default(1), // 1-5, 优先级
-  createdAt: timestamp("created_at").defaultNow(),
-});
-
 // Zod schemas for validation
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
@@ -128,17 +97,6 @@ export const insertMedicalReportSchema = createInsertSchema(medicalReports).omit
   createdAt: true,
 });
 
-export const insertClinicalGuidelineDocumentSchema = createInsertSchema(clinicalGuidelineDocuments).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertGuidelineSectionSchema = createInsertSchema(guidelineSections).omit({
-  id: true,
-  createdAt: true,
-});
-
 // TypeScript types
 export type Patient = typeof patients.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
@@ -154,12 +112,6 @@ export type InsertDrug = z.infer<typeof insertDrugSchema>;
 
 export type MedicalReport = typeof medicalReports.$inferSelect;
 export type InsertMedicalReport = z.infer<typeof insertMedicalReportSchema>;
-
-export type ClinicalGuidelineDocument = typeof clinicalGuidelineDocuments.$inferSelect;
-export type InsertClinicalGuidelineDocument = z.infer<typeof insertClinicalGuidelineDocumentSchema>;
-
-export type GuidelineSectionType = typeof guidelineSections.$inferSelect;
-export type InsertGuidelineSection = z.infer<typeof insertGuidelineSectionSchema>;
 
 // Additional types for complex data structures
 export interface RiskFactor {
@@ -187,15 +139,6 @@ export interface ClinicalGuideline {
   relevance: 'low' | 'medium' | 'high';
   summary: string;
   recommendations: string[];
-}
-
-// 指南章节结构
-export interface GuidelineSectionData {
-  title: string;
-  content: string;
-  type: string;
-  keywords: string[];
-  priority: number;
 }
 
 export interface AgentStatus {
