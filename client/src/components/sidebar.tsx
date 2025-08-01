@@ -17,7 +17,11 @@ export function Sidebar() {
     <div className="w-64 bg-white shadow-lg border-r border-gray-200">
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
-          <i className="fas fa-shield-alt text-2xl text-blue-600"></i>
+          <img 
+            src="/attached_assets/图标1_1754023912364.png" 
+            alt="麻醉守护神 Logo" 
+            className="w-8 h-8"
+          />
           <div>
             <h1 className="text-lg font-semibold text-gray-900">麻醉守护神</h1>
             <p className="text-sm text-gray-500">Anesthesia Guardian</p>
