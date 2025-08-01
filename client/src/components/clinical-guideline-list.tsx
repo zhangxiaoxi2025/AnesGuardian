@@ -100,16 +100,16 @@ export default function ClinicalGuidelineList() {
   });
 
   // Filter guidelines
-  const filteredGuidelines = guidelines.filter((guideline: ClinicalGuideline) => {
+  const filteredGuidelines = Array.isArray(guidelines) ? guidelines.filter((guideline: ClinicalGuideline) => {
     const matchesSearch = searchTerm === "" || 
       guideline.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       guideline.organization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      guideline.keywords.some(keyword => 
+      (guideline.keywords && guideline.keywords.some(keyword => 
         keyword.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      ));
 
     return matchesSearch;
-  });
+  }) : [];
 
   const getCategoryLabel = (category: string) => {
     const labels: { [key: string]: string } = {

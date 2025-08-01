@@ -471,266 +471,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Clinical Guidelines endpoint
+  // Clinical Guidelines endpoint - using database data
   app.get("/api/clinical-guidelines", async (req, res) => {
     try {
-      const { condition, category, relevance, search } = req.query;
-
-      // Comprehensive clinical guidelines database
-      const guidelines = [
-        {
-          id: "asa-2023-periop",
-          title: "围术期麻醉管理指南 2023",
-          organization: "ASA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "美国麻醉医师协会发布的围术期麻醉管理标准指南",
-          recommendations: ["标准监测", "气道管理", "液体管理", "疼痛控制"],
-          keywords: ["围术期", "麻醉管理", "监测", "气道"],
-          category: "麻醉管理",
-          fullContent: "详细的围术期麻醉管理指南内容...",
-          source: "https://pubs.asahq.org/"
-        },
-        {
-          id: "esc-2022-cardiac",
-          title: "心脏手术围术期管理指南",
-          organization: "ESC",
-          year: 2022,
-          relevance: "high" as const,
-          summary: "欧洲心脏病学会心脏手术围术期管理指南",
-          recommendations: ["术前评估", "心肌保护", "血流动力学管理"],
-          keywords: ["心脏手术", "围术期", "血流动力学"],
-          category: "心脏外科",
-          fullContent: "心脏手术围术期管理的详细指南...",
-          source: "https://www.escardio.org/"
-        },
-        {
-          id: "das-difficult-airway-2023",
-          title: "困难气道管理指南",
-          organization: "DAS",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "英国困难气道协会最新发布的困难气道识别和管理标准指南",
-          recommendations: ["术前气道评估", "困难气道预测", "备用气道计划", "团队协作"],
-          keywords: ["困难气道", "气道管理", "插管", "声门上器械"],
-          category: "气道管理",
-          fullContent: "困难气道管理指南详细内容...",
-          source: "https://das.uk.com/"
-        },
-        {
-          id: "ponv-consensus-2023",
-          title: "术后恶心呕吐防治指南",
-          organization: "SAMBA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "美国基于回合的麻醉协会术后恶心呕吐预防和治疗共识",
-          recommendations: ["风险评估", "预防性用药", "多模式治疗", "救援治疗"],
-          keywords: ["PONV", "恶心", "呕吐", "预防", "治疗"],
-          category: "术后管理",
-          fullContent: "术后恶心呕吐防治指南详细内容...",
-          source: "https://www.sambahq.org/"
-        },
-        {
-          id: "regional-anesthesia-2023",
-          title: "区域阻滞麻醉安全指南",
-          organization: "ASRA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "美国区域麻醉和疼痛医学会区域阻滞安全实践指南",
-          recommendations: ["超声引导技术", "无菌操作", "局麻药选择", "并发症预防"],
-          keywords: ["区域阻滞", "神经阻滞", "脊髓麻醉", "硬膜外"],
-          category: "区域麻醉",
-          fullContent: "区域阻滞麻醉安全指南详细内容...",
-          source: "https://www.asra.com/"
-        },
-        {
-          id: "pediatric-anesthesia-2023",
-          title: "小儿麻醉安全指南",
-          organization: "SPA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "小儿麻醉协会儿童麻醉安全管理指南",
-          recommendations: ["年龄体重计算", "体温管理", "液体治疗", "家属沟通"],
-          keywords: ["小儿麻醉", "儿童", "新生儿", "婴儿"],
-          category: "专科麻醉",
-          fullContent: "小儿麻醉安全指南详细内容...",
-          source: "https://www.pedsanesthesia.org/"
-        },
-        {
-          id: "obstetric-anesthesia-2023",
-          title: "产科麻醉管理指南",
-          organization: "SOAP",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "产科麻醉和围产期医学会产科麻醉管理指南",
-          recommendations: ["分娩镇痛", "剖宫产麻醉", "产科急症", "胎儿监护"],
-          keywords: ["产科麻醉", "分娩", "剖宫产", "妊娠"],
-          category: "专科麻醉",
-          fullContent: "产科麻醉管理指南详细内容...",
-          source: "https://www.soap.org/"
-        },
-        {
-          id: "geriatric-anesthesia-2023",
-          title: "老年患者麻醉指南",
-          organization: "IARS",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "国际麻醉研究协会老年患者麻醉管理专家共识",
-          recommendations: ["认知功能评估", "药物剂量调整", "术后谵妄预防", "早期康复"],
-          keywords: ["老年麻醉", "认知", "谵妄", "衰弱"],
-          category: "专科麻醉",
-          fullContent: "老年患者麻醉指南详细内容...",
-          source: "https://www.iars.org/"
-        },
-        {
-          id: "pain-management-2023",
-          title: "围术期疼痛管理指南",
-          organization: "ASA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "美国麻醉医师协会围术期疼痛管理循证指南",
-          recommendations: ["多模式镇痛", "个体化方案", "非阿片类药物", "区域技术"],
-          keywords: ["疼痛管理", "镇痛", "阿片类", "多模式"],
-          category: "疼痛管理",
-          fullContent: "围术期疼痛管理指南详细内容...",
-          source: "https://pubs.asahq.org/"
-        },
-        {
-          id: "ambulatory-anesthesia-2023",
-          title: "日间手术麻醉指南",
-          organization: "SAMBA",
-          year: 2023,
-          relevance: "medium" as const,
-          summary: "美国基于回合的麻醉协会日间手术麻醉管理指南",
-          recommendations: ["快速康复", "术后镇痛", "出院标准", "随访管理"],
-          keywords: ["日间手术", "门诊麻醉", "快速康复", "出院"],
-          category: "门诊麻醉",
-          fullContent: "日间手术麻醉指南详细内容...",
-          source: "https://www.sambahq.org/"
-        },
-        {
-          id: "neurosurgical-anesthesia-2023",
-          title: "神经外科麻醉指南",
-          organization: "SNACC",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "神经麻醉和神经监测协会神经外科麻醉管理指南",
-          recommendations: ["脑保护策略", "颅内压监测", "神经功能监测", "苏醒期管理"],
-          keywords: ["神经外科", "脑外科", "颅内压", "神经监测"],
-          category: "专科麻醉",
-          fullContent: "神经外科麻醉指南详细内容...",
-          source: "https://www.snacc.org/"
-        },
-        {
-          id: "cardiac-anesthesia-2023",
-          title: "心脏麻醉管理指南",
-          organization: "SCA",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "心脏麻醉协会心脏手术麻醉管理专家指南",
-          recommendations: ["心肌保护", "体外循环管理", "凝血功能监测", "血流动力学优化"],
-          keywords: ["心脏麻醉", "体外循环", "心肌保护", "血流动力学"],
-          category: "专科麻醉",
-          fullContent: "心脏麻醉管理指南详细内容...",
-          source: "https://www.scahq.org/"
-        },
-        {
-          id: "transplant-anesthesia-2023",
-          title: "器官移植麻醉指南",
-          organization: "AST",
-          year: 2023,
-          relevance: "medium" as const,
-          summary: "美国移植学会器官移植手术麻醉管理指南",
-          recommendations: ["供体管理", "受体准备", "免疫抑制剂相互作用", "术后监护"],
-          keywords: ["器官移植", "肝移植", "肾移植", "心脏移植"],
-          category: "专科麻醉",
-          fullContent: "器官移植麻醉指南详细内容...",
-          source: "https://www.myast.org/"
-        },
-        {
-          id: "trauma-anesthesia-2023",
-          title: "创伤急救麻醉指南",
-          organization: "ATLS",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "高级创伤生命支持创伤患者麻醉管理指南",
-          recommendations: ["快速序贯诱导", "大量输血方案", "损伤控制复苏", "体温管理"],
-          keywords: ["创伤麻醉", "急救", "大量输血", "损伤控制"],
-          category: "急救麻醉",
-          fullContent: "创伤急救麻醉指南详细内容...",
-          source: "https://www.facs.org/"
-        },
-        {
-          id: "icu-sedation-2023",
-          title: "ICU镇静镇痛指南",
-          organization: "SCCM",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "重症医学会重症监护病房镇静镇痛和谵妄管理指南",
-          recommendations: ["浅镇静策略", "每日觉醒试验", "谵妄筛查", "早期活动"],
-          keywords: ["ICU", "镇静", "镇痛", "谵妄", "机械通气"],
-          category: "重症医学",
-          fullContent: "ICU镇静镇痛指南详细内容...",
-          source: "https://www.sccm.org/"
-        },
-        {
-          id: "sepsis-management-2023",
-          title: "脓毒症患者麻醉指南",
-          organization: "SSC",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "脓毒症拯救运动脓毒症患者围术期管理指南",
-          recommendations: ["早期识别", "液体复苏", "血管加压药使用", "抗感染治疗"],
-          keywords: ["脓毒症", "感染", "休克", "液体复苏"],
-          category: "急危重症",
-          fullContent: "脓毒症患者麻醉指南详细内容...",
-          source: "https://www.survivingsepsis.org/"
-        },
-        {
-          id: "malignant-hyperthermia-2023",
-          title: "恶性高热管理指南",
-          organization: "MHAUS",
-          year: 2023,
-          relevance: "high" as const,
-          summary: "恶性高热协会恶性高热诊断和治疗紧急指南",
-          recommendations: ["早期识别", "立即停药", "丹曲林治疗", "支持治疗"],
-          keywords: ["恶性高热", "丹曲林", "肌松药", "吸入麻醉药"],
-          category: "麻醉并发症",
-          fullContent: "恶性高热管理指南详细内容...",
-          source: "https://www.mhaus.org/"
-        }
-      ];
-
-      // Filter based on query parameters
-      let filteredGuidelines = guidelines;
-
-      if (search) {
-        const searchTerm = (search as string).toLowerCase();
-        filteredGuidelines = filteredGuidelines.filter(g => 
-          g.title.toLowerCase().includes(searchTerm) ||
-          g.summary.toLowerCase().includes(searchTerm) ||
-          g.keywords?.some(k => k.toLowerCase().includes(searchTerm))
-        );
+      const { category } = req.query;
+      
+      console.log("🔍 获取临床指南请求, 分类:", category);
+      
+      let guidelines;
+      if (category && typeof category === 'string') {
+        guidelines = await storage.getClinicalGuidelinesByCategory(category);
+      } else {
+        guidelines = await storage.getAllClinicalGuidelines();
       }
-
-      if (category) {
-        filteredGuidelines = filteredGuidelines.filter(g => 
-          g.category?.toLowerCase() === (category as string).toLowerCase()
-        );
-      }
-
-      if (relevance) {
-        filteredGuidelines = filteredGuidelines.filter(g => 
-          g.relevance === relevance
-        );
-      }
-
-      res.json({
-        guidelines: filteredGuidelines,
-        total: filteredGuidelines.length
-      });
+      
+      console.log("📊 从存储中获取的指南数量:", guidelines.length);
+      console.log("📋 指南列表:", guidelines.map(g => ({ id: g.id, title: g.title })));
+      
+      res.json(guidelines);
     } catch (error) {
-      console.error("Clinical guidelines error:", error);
+      console.error("Failed to fetch clinical guidelines:", error);
       res.status(500).json({ message: "Failed to fetch clinical guidelines" });
     }
   });
@@ -957,24 +717,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // === Clinical Guidelines Routes ===
   
-  // Get all clinical guidelines
-  app.get("/api/clinical-guidelines", async (req, res) => {
-    try {
-      const { category } = req.query;
-      let guidelines;
-      
-      if (category && typeof category === 'string') {
-        guidelines = await storage.getClinicalGuidelinesByCategory(category);
-      } else {
-        guidelines = await storage.getAllClinicalGuidelines();
-      }
-      
-      res.json(guidelines);
-    } catch (error) {
-      console.error("Failed to fetch clinical guidelines:", error);
-      res.status(500).json({ message: "Failed to fetch clinical guidelines" });
-    }
-  });
+
 
   // Get specific clinical guideline
   app.get("/api/clinical-guidelines/:id", async (req, res) => {
