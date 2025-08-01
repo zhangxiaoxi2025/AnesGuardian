@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'wouter';
 import { cn } from '@/lib/utils';
+import logoImage from '@assets/图标1_1754023912364.png';
 
 const navigation = [
   { name: '工作台', href: '/dashboard', icon: 'fas fa-dashboard' },
@@ -18,7 +19,7 @@ export function Sidebar() {
       <div className="p-6 border-b border-gray-200">
         <div className="flex items-center space-x-3">
           <img 
-            src="/attached_assets/图标1_1754023912364.png" 
+            src={logoImage} 
             alt="麻醉守护神 Logo" 
             className="w-8 h-8"
           />
