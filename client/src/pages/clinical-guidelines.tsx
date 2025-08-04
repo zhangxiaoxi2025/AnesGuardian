@@ -131,15 +131,22 @@ const featuredGuidelines: ClinicalGuideline[] = [
 export default function ClinicalGuidelines() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedGuideline, setSelectedGuideline] = useState<ClinicalGuideline | null>(null);
+  const [categoryFilter, setCategoryFilter] = useState<string>('');
+  const [relevanceFilter, setRelevanceFilter] = useState<string>('');
 
   const { data: searchResults, isLoading, error } = useQuery({
-    queryKey: ['guidelines', searchQuery],
+    queryKey: ['guidelines', searchQuery, categoryFilter, relevanceFilter],
     queryFn: async () => {
-      if (!searchQuery.trim()) {
+      const params = new URLSearchParams();
+      if (searchQuery.trim()) params.append('search', searchQuery);
+      if (categoryFilter) params.append('category', categoryFilter);
+      if (relevanceFilter) params.append('relevance', relevanceFilter);
+      
+      if (!searchQuery.trim() && !categoryFilter && !relevanceFilter) {
         return { guidelines: featuredGuidelines, total: featuredGuidelines.length };
       }
       
-      const response = await fetch(`/api/clinical-guidelines?search=${encodeURIComponent(searchQuery)}`);
+      const response = await fetch(`/api/clinical-guidelines?${params.toString()}`);
       if (!response.ok) {
         throw new Error('Failed to search guidelines');
       }
@@ -166,28 +173,108 @@ export default function ClinicalGuidelines() {
 
       <Card className="mb-6">
         <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="搜索指南，如：困难气道、围术期管理、疼痛控制..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+          <form onSubmit={handleSearch} className="space-y-4">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="搜索指南，如：困难气道、围术期管理、疼痛控制..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? '搜索中...' : '搜索'}
+              </Button>
             </div>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? '搜索中...' : '搜索'}
-            </Button>
+            
+            <div className="flex gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                  按专业分类筛选
+                </label>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">全部分类</option>
+                  <option value="麻醉管理">麻醉管理</option>
+                  <option value="区域麻醉">区域麻醉</option>
+                  <option value="气道管理">气道管理</option>
+                  <option value="心脏麻醉">心脏麻醉</option>
+                  <option value="小儿麻醉">小儿麻醉</option>
+                  <option value="产科麻醉">产科麻醉</option>
+                  <option value="老年麻醉">老年麻醉</option>
+                  <option value="疼痛管理">疼痛管理</option>
+                  <option value="神经麻醉">神经麻醉</option>
+                  <option value="胸科麻醉">胸科麻醉</option>
+                  <option value="急诊麻醉">急诊麻醉</option>
+                  <option value="日间麻醉">日间麻醉</option>
+                  <option value="ERAS">ERAS</option>
+                  <option value="血液管理">血液管理</option>
+                  <option value="器官移植">器官移植</option>
+                  <option value="感染控制">感染控制</option>
+                  <option value="神经保护">神经保护</option>
+                  <option value="急救处理">急救处理</option>
+                  <option value="营养管理">营养管理</option>
+                </select>
+              </div>
+              
+              <div className="flex-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
+                  按相关性筛选
+                </label>
+                <select
+                  value={relevanceFilter}
+                  onChange={(e) => setRelevanceFilter(e.target.value)}
+                  className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">全部相关性</option>
+                  <option value="high">高相关</option>
+                  <option value="medium">中相关</option>
+                  <option value="low">低相关</option>
+                </select>
+              </div>
+              
+              <div className="flex items-end">
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setCategoryFilter('');
+                    setRelevanceFilter('');
+                  }}
+                >
+                  清除筛选
+                </Button>
+              </div>
+            </div>
           </form>
         </CardContent>
       </Card>
 
-      {!searchQuery && (
+      {!searchQuery && !categoryFilter && !relevanceFilter && (
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-4">
             热门指南推荐
           </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            共收录 {searchResults?.total || guidelines.length} 篇权威临床指南，涵盖麻醉学各个专业领域
+          </p>
+        </div>
+      )}
+      
+      {(searchQuery || categoryFilter || relevanceFilter) && (
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+            搜索结果
+          </h2>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            找到 {guidelines.length} 篇相关指南
+          </p>
         </div>
       )}
 

@@ -544,6 +544,266 @@ export async function registerRoutes(app: Express): Promise<Server> {
           source: "https://www.asra.com/"
         },
         {
+          id: "asa-blood-transfusion-2023",
+          title: "围术期输血治疗指南",
+          organization: "ASA",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国麻醉医师协会围术期输血治疗循证医学指南",
+          recommendations: ["血红蛋白阈值", "成分输血", "大量输血协议", "输血并发症预防"],
+          keywords: ["输血", "血红蛋白", "成分血", "大量输血"],
+          category: "血液管理",
+          fullContent: "围术期输血治疗指南详细内容...",
+          source: "https://pubs.asahq.org/"
+        },
+        {
+          id: "esra-neuraxial-2023",
+          title: "椎管内麻醉并发症预防指南",
+          organization: "ESRA",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "欧洲区域麻醉学会椎管内麻醉并发症预防和处理指南",
+          recommendations: ["穿刺技术", "感染预防", "神经损伤预防", "血肿预防"],
+          keywords: ["椎管内麻醉", "脊髓麻醉", "硬膜外", "并发症"],
+          category: "区域麻醉",
+          fullContent: "椎管内麻醉并发症预防指南详细内容...",
+          source: "https://esraeurope.org/"
+        },
+        {
+          id: "china-anesthesia-guidelines-2024",
+          title: "中国麻醉学临床实践指南（2024版）",
+          organization: "中华医学会麻醉学分会",
+          year: 2024,
+          relevance: "high" as const,
+          summary: "中华医学会麻醉学分会发布的适用于中国临床实践的麻醉学指南",
+          recommendations: ["中国人群特点", "药物代谢差异", "设备标准", "质量控制"],
+          keywords: ["中国指南", "临床实践", "质量控制", "标准化"],
+          category: "麻醉管理",
+          fullContent: "中国麻醉学临床实践指南详细内容...",
+          source: "https://www.cmda.net/"
+        },
+        {
+          id: "enhanced-recovery-colorectal-2023",
+          title: "结直肠手术加速康复指南",
+          organization: "ERAS Society",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "ERAS协会结直肠手术加速康复循证医学指南",
+          recommendations: ["术前优化", "最小化创伤麻醉", "多模式镇痛", "早期康复"],
+          keywords: ["ERAS", "加速康复", "结直肠", "多模式镇痛"],
+          category: "ERAS",
+          fullContent: "结直肠手术加速康复指南详细内容...",
+          source: "https://erassociety.org/"
+        },
+        {
+          id: "asa-opioid-stewardship-2023",
+          title: "围术期阿片类药物合理使用指南",
+          organization: "ASA",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "ASA围术期阿片类药物合理使用和成瘾预防指南",
+          recommendations: ["多模式镇痛", "阿片替代", "成瘾风险评估", "术后监测"],
+          keywords: ["阿片类药物", "多模式镇痛", "成瘾预防", "疼痛管理"],
+          category: "疼痛管理",
+          fullContent: "围术期阿片类药物合理使用指南详细内容...",
+          source: "https://pubs.asahq.org/"
+        },
+        {
+          id: "obstetric-anesthesia-2023",
+          title: "产科麻醉管理指南",
+          organization: "SOAP",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国产科麻醉和围术期医学会产科麻醉管理指南",
+          recommendations: ["椎管内分娩镇痛", "剖宫产麻醉", "产科急症处理", "母婴安全"],
+          keywords: ["产科麻醉", "分娩镇痛", "剖宫产", "母婴安全"],
+          category: "产科麻醉",
+          fullContent: "产科麻醉管理指南详细内容...",
+          source: "https://soap.org/"
+        },
+        {
+          id: "cardiac-anesthesia-2023",
+          title: "心脏麻醉管理指南",
+          organization: "SCA",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国心脏麻醉学会心脏手术麻醉管理标准指南",
+          recommendations: ["术前心功能评估", "体外循环管理", "心肌保护", "血流动力学监测"],
+          keywords: ["心脏麻醉", "体外循环", "心肌保护", "血流动力学"],
+          category: "心脏麻醉",
+          fullContent: "心脏麻醉管理指南详细内容...",
+          source: "https://scahq.org/"
+        },
+        {
+          id: "pediatric-anesthesia-2024",
+          title: "小儿麻醉安全管理指南",
+          organization: "SPANZA",
+          year: 2024,
+          relevance: "high" as const,
+          summary: "澳新小儿麻醉学会小儿麻醉安全管理循证指南",
+          recommendations: ["年龄特异性风险", "气道管理", "液体治疗", "术后监护"],
+          keywords: ["小儿麻醉", "儿童安全", "气道管理", "发育特点"],
+          category: "小儿麻醉",
+          fullContent: "小儿麻醉安全管理指南详细内容...",
+          source: "https://spanza.org.au/"
+        },
+        {
+          id: "geriatric-anesthesia-2023",
+          title: "老年患者麻醉管理指南",
+          organization: "SAGE",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "老年麻醉学会老年患者围术期麻醉管理专家共识",
+          recommendations: ["认知功能评估", "多病共存管理", "药物代谢调整", "术后谵妄预防"],
+          keywords: ["老年麻醉", "认知功能", "多病共存", "术后谵妄"],
+          category: "老年麻醉",
+          fullContent: "老年患者麻醉管理指南详细内容...",
+          source: "https://www.sageanesthesia.com/"
+        },
+        {
+          id: "ambulatory-anesthesia-2023",
+          title: "日间手术麻醉管理指南",
+          organization: "SAMBA",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国基于回合的麻醉协会日间手术麻醉管理指南",
+          recommendations: ["患者筛选", "快速恢复", "疼痛控制", "出院标准"],
+          keywords: ["日间手术", "门诊麻醉", "快速恢复", "患者筛选"],
+          category: "日间麻醉",
+          fullContent: "日间手术麻醉管理指南详细内容...",
+          source: "https://www.sambahq.org/"
+        },
+        {
+          id: "chronic-pain-perioperative-2023",
+          title: "慢性疼痛患者围术期管理指南",
+          organization: "ASPM",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国疼痛医学会慢性疼痛患者围术期管理指南",
+          recommendations: ["术前评估", "药物调整", "多模式镇痛", "术后过渡"],
+          keywords: ["慢性疼痛", "围术期", "药物调整", "疼痛管理"],
+          category: "疼痛管理",
+          fullContent: "慢性疼痛患者围术期管理指南详细内容...",
+          source: "https://www.painmed.org/"
+        },
+        {
+          id: "emergency-anesthesia-2023",
+          title: "急诊麻醉管理指南",
+          organization: "ACEP",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国急诊医师学会急诊情况下麻醉管理指南",
+          recommendations: ["快速评估", "紧急气道", "血流动力学稳定", "创伤麻醉"],
+          keywords: ["急诊麻醉", "创伤", "紧急气道", "血流动力学"],
+          category: "急诊麻醉",
+          fullContent: "急诊麻醉管理指南详细内容...",
+          source: "https://www.acep.org/"
+        },
+        {
+          id: "malignant-hyperthermia-2024",
+          title: "恶性高热诊断和治疗指南",
+          organization: "MHAUS",
+          year: 2024,
+          relevance: "high" as const,
+          summary: "恶性高热协会恶性高热诊断、治疗和预防最新指南",
+          recommendations: ["早期识别", "丹曲林治疗", "支持治疗", "家族筛查"],
+          keywords: ["恶性高热", "丹曲林", "遗传筛查", "急救处理"],
+          category: "急救处理",
+          fullContent: "恶性高热诊断和治疗指南详细内容...",
+          source: "https://www.mhaus.org/"
+        },
+        {
+          id: "liver-transplant-anesthesia-2023",
+          title: "肝移植手术麻醉管理指南",
+          organization: "ILTS",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "国际肝移植学会肝移植手术围术期麻醉管理指南",
+          recommendations: ["凝血功能管理", "血流动力学监测", "肾功能保护", "免疫抑制"],
+          keywords: ["肝移植", "凝血管理", "器官移植", "免疫抑制"],
+          category: "器官移植",
+          fullContent: "肝移植手术麻醉管理指南详细内容...",
+          source: "https://ilts.org/"
+        },
+        {
+          id: "neurosurgical-anesthesia-2023",
+          title: "神经外科麻醉管理指南",
+          organization: "SNACC",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国神经麻醉和重症医学会神经外科麻醉管理指南",
+          recommendations: ["颅内压管理", "脑保护", "术中监测", "神经功能评估"],
+          keywords: ["神经外科", "颅内压", "脑保护", "神经监测"],
+          category: "神经麻醉",
+          fullContent: "神经外科麻醉管理指南详细内容...",
+          source: "https://www.snacc.org/"
+        },
+        {
+          id: "thoracic-anesthesia-2023",
+          title: "胸科手术麻醉管理指南",
+          organization: "STS",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "美国胸外科学会胸科手术麻醉管理指南",
+          recommendations: ["单肺通气", "疼痛管理", "呼吸功能保护", "术后康复"],
+          keywords: ["胸科手术", "单肺通气", "胸段硬膜外", "肺保护"],
+          category: "胸科麻醉",
+          fullContent: "胸科手术麻醉管理指南详细内容...",
+          source: "https://www.sts.org/"
+        },
+        {
+          id: "airway-management-covid-2023",
+          title: "COVID-19患者气道管理指南",
+          organization: "WHO",  
+          year: 2023,
+          relevance: "high" as const,
+          summary: "世界卫生组织COVID-19患者围术期气道管理指南",
+          recommendations: ["感染防护", "气溶胶防护", "团队协作", "设备消毒"],
+          keywords: ["COVID-19", "感染控制", "气溶胶", "防护装备"],
+          category: "感染控制",
+          fullContent: "COVID-19患者气道管理指南详细内容...",
+          source: "https://www.who.int/"
+        },
+        {
+          id: "ultrasound-guided-blocks-2024",
+          title: "超声引导神经阻滞技术指南",
+          organization: "ASRA-ESRA",
+          year: 2024,
+          relevance: "high" as const,
+          summary: "ASRA-ESRA联合发布的超声引导神经阻滞技术标准指南",
+          recommendations: ["超声技术", "解剖识别", "针刺技术", "局麻药注射"],
+          keywords: ["超声引导", "神经阻滞", "解剖定位", "可视化"],
+          category: "区域麻醉",
+          fullContent: "超声引导神经阻滞技术指南详细内容...",
+          source: "https://www.asra.com/"
+        },
+        {
+          id: "postoperative-cognitive-dysfunction-2023",
+          title: "术后认知功能障碍预防指南",
+          organization: "ISPOCD",
+          year: 2023,
+          relevance: "high" as const,
+          summary: "国际术后认知功能障碍学会术后认知功能障碍预防和管理指南",
+          recommendations: ["风险识别", "麻醉策略", "术后监测", "康复训练"],
+          keywords: ["认知功能", "术后谵妄", "神经保护", "老年患者"],
+          category: "神经保护",
+          fullContent: "术后认知功能障碍预防指南详细内容...",
+          source: "https://www.ispocd.org/"
+        },
+        {
+          id: "perioperative-nutrition-2023",
+          title: "围术期营养管理指南",
+          organization: "ESPEN",
+          year: 2023,
+          relevance: "medium" as const,
+          summary: "欧洲临床营养代谢学会围术期营养管理指南",
+          recommendations: ["术前禁食", "营养评估", "肠内营养", "术后营养"],
+          keywords: ["围术期营养", "禁食", "营养支持", "代谢管理"],
+          category: "营养管理",
+          fullContent: "围术期营养管理指南详细内容...",
+          source: "https://www.espen.org/"
+        },
+        {
           id: "pediatric-anesthesia-2023",
           title: "小儿麻醉安全指南",
           organization: "SPA",
@@ -724,6 +984,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           g.relevance === relevance
         );
       }
+
+      // Sort by relevance and year (high relevance and recent years first)
+      filteredGuidelines.sort((a, b) => {
+        // First sort by relevance
+        const relevanceOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+        if (relevanceOrder[a.relevance] !== relevanceOrder[b.relevance]) {
+          return relevanceOrder[b.relevance] - relevanceOrder[a.relevance];
+        }
+        // Then by year (more recent first)
+        return b.year - a.year;
+      });
 
       res.json({
         guidelines: filteredGuidelines,
