@@ -46,3 +46,93 @@ Preferred communication style: Simple, everyday language.
 - **Drizzle ORM**: For database interactions and schema management.
 - **Radix UI**: Accessible component primitives for the user interface.
 - **Tesseract.js**: For OCR text recognition from medical documents.
+
+## Environment Configuration
+
+### Required Environment Variables
+The application requires the following environment variables to be configured:
+
+#### Essential Variables (Required)
+- `GEMINI_API_KEY`: Google Gemini AI API key for medical analysis and chat functionality
+- `DATABASE_URL`: PostgreSQL database connection string
+- `NODE_ENV`: Application environment (development/production)
+
+#### Optional Variables
+- `OPENAI_API_KEY`: OpenAI API key (backup AI service)
+- `ANTHROPIC_API_KEY`: Anthropic Claude API key (backup AI service)
+- `SESSION_SECRET`: Secret key for session management (required in production)
+- `PORT`: Server port (default: 3000)
+- `LOG_LEVEL`: Logging verbosity (error/warn/info/debug)
+
+### Development Setup
+
+1. **Clone the repository and install dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Configure environment variables**:
+   ```bash
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your actual API keys and database URL
+   nano .env
+   ```
+
+3. **Set up the database**:
+   ```bash
+   # The application will automatically create tables on first run
+   # Ensure your DATABASE_URL points to a valid PostgreSQL instance
+   ```
+
+4. **Start the development server**:
+   ```bash
+   npm run dev
+   ```
+
+### Production Deployment
+
+#### Security Considerations
+- **Never commit .env files** to version control
+- **Use environment-specific secrets management** for production deployments
+- **Rotate API keys regularly** and implement monitoring for unusual usage
+- **Use HTTPS** for all production deployments
+- **Implement rate limiting** for API endpoints
+
+#### Deployment Steps
+1. **Prepare environment variables** in your hosting platform
+2. **Set NODE_ENV=production**
+3. **Configure database** with proper connection pooling
+4. **Set up monitoring** for application health and performance
+5. **Configure backup strategies** for database and critical data
+
+#### Recommended Production Configuration
+```bash
+NODE_ENV=production
+SESSION_SECRET=<strong-random-secret>
+DATABASE_URL=<production-database-url>
+GEMINI_API_KEY=<production-api-key>
+LOG_LEVEL=warn
+CORS_ORIGIN=<your-domain>
+```
+
+### Security Guidelines
+
+#### API Key Management
+- Store all API keys in environment variables, never in code
+- Use different API keys for development and production environments
+- Implement proper error handling to avoid exposing keys in error messages
+- Monitor API usage and set up alerts for unusual activity
+
+#### Database Security
+- Use connection pooling and prepared statements
+- Implement proper backup and recovery procedures
+- Regularly update database credentials
+- Monitor for unauthorized access attempts
+
+#### Application Security
+- Keep all dependencies updated
+- Implement proper input validation and sanitization
+- Use HTTPS for all communications
+- Implement proper session management and CSRF protection
