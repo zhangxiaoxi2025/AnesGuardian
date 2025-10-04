@@ -1187,7 +1187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         console.log("Received image for processing:", req.file.originalname);
 
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
         const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
 
         const textPrompt = "你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并以JSON格式返回以下信息：1. 'summary': 对病史的简要总结，包含主要诊断和症状。2. 'medications': 一个包含所有当前用药名称的字符串数组。请确保提取的信息准确无误。";
