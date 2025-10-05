@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express from 'express';
 import { registerRoutes } from './routes';
 import { seedDrugs } from './seed';
