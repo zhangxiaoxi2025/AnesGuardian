@@ -50,6 +50,7 @@ export async function processImageWithAI(imageBuffer: Buffer): Promise<Extracted
         }
       ],
       config: {
+        temperature: 0.2,
         responseMimeType: "application/json",
         responseSchema: {
           type: "object",
@@ -107,7 +108,7 @@ export async function processMedicalRecord(imageBuffer: Buffer): Promise<Extract
     
     if (!rawText || rawText.trim().length === 0) {
       return {
-        diagnoses: [],
+        summary: '',
         medications: [],
         rawText: '',
         success: false,
@@ -119,8 +120,11 @@ export async function processMedicalRecord(imageBuffer: Buffer): Promise<Extract
     const extractedData = await extractMedicalInformation(rawText);
     console.log('🧠 AI信息提取完成');
     
+    const diagnoses = extractedData.diagnoses || [];
+    const summary = diagnoses.length > 0 ? `诊断：${diagnoses.join('、')}` : rawText.substring(0, 200);
+    
     return {
-      diagnoses: extractedData.diagnoses || [],
+      summary: summary,
       medications: extractedData.medications || [],
       rawText: rawText,
       success: true
@@ -129,7 +133,7 @@ export async function processMedicalRecord(imageBuffer: Buffer): Promise<Extract
   } catch (error) {
     console.error('❌ 病历处理失败:', error);
     return {
-      diagnoses: [],
+      summary: '',
       medications: [],
       rawText: '',
       success: false,
