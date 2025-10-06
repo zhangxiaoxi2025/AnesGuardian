@@ -118,16 +118,34 @@ export default function PatientForm() {
     onSuccess: (data) => {
       setRecognitionStatus('success');
       
-      // 将AI识别的信息填入表单
-      if (data.summary && data.summary.trim()) {
+      // 处理新的数据结构：麻醉相关病史
+      if (data.anesthesiaRelevantHistory && data.anesthesiaRelevantHistory.length > 0) {
+        const historyText = data.anesthesiaRelevantHistory
+          .map((item: any) => `${item.condition}（${item.details}）`)
+          .join('、');
+        form.setValue('medicalHistoryText', historyText);
+      } else if (data.summary && data.summary.trim()) {
+        // 兼容旧格式
         form.setValue('medicalHistoryText', data.summary);
       } else if (data.diagnoses && data.diagnoses.length > 0) {
-        // 兼容旧格式
+        // 兼容更旧格式
         form.setValue('medicalHistoryText', data.diagnoses.join(', '));
       }
       
-      if (data.medications && data.medications.length > 0) {
+      // 处理当前用药信息
+      if (data.currentMedications && data.currentMedications.length > 0) {
+        const medicationsText = data.currentMedications
+          .map((item: any) => `${item.drug}（${item.dosage}，${item.reason}）`)
+          .join('、');
+        form.setValue('medicationsText', medicationsText);
+      } else if (data.medications && data.medications.length > 0) {
+        // 兼容旧格式
         form.setValue('medicationsText', data.medications.join(', '));
+      }
+      
+      // 处理过敏史
+      if (data.allergies) {
+        form.setValue('allergiesText', data.allergies.details || '无');
       }
       
       toast({
