@@ -1187,10 +1187,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         console.log("Received image for processing:", req.file.originalname);
 
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-lite-preview-06-17" });
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-2.5-flash-lite-preview-06-17",
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: "application/json"
+          }
+        });
         const imagePart = fileToGenerativePart(req.file.buffer, req.file.mimetype);
 
-        const textPrompt = "你是一名专业的医疗信息录入员。请仔细分析这张病历图片，并以JSON格式返回以下信息：1. 'summary': 对病史的简要总结，包含主要诊断和症状。2. 'medications': 一个包含所有当前用药名称的字符串数组。请确保提取的信息准确无误。";
+        const textPrompt = `# 角色与目标
+你是一名经验丰富、严谨细致的麻醉医生助理AI。你的核心任务是，从以下提供的病历图片中，精准提取并结构化总结所有与麻醉术前评估相关的信息。
+
+# 核心指令
+你必须严格遵循以下规则，确保提取信息的**准确性、相关性、**和**完整性**。
+
+## 规则 1：信息提取范围 (Scope)
+
+你必须严格按照以下清单筛选信息，清单以外的内容除非有明确的麻醉风险，否则一律忽略。
+
+### A. 必须提取的病史 (Priority Conditions):
+- **心血管系统**: 高血压、冠心病（心梗、支架史）、心律失常、心力衰竭、瓣膜病等。
+- **呼吸系统**: 哮喘、慢性阻塞性肺病(COPD)、睡眠呼吸暂停综合征(OSAHS)等。
+- **神经系统**: 脑卒中（脑梗、脑出血）、癫痫、帕金森病、重症肌无力等。
+- **内分泌系统**: 糖尿病（及血糖控制情况）、甲状腺功能异常（甲亢/甲减）、肾上腺疾病等。
+- **精神系统**: 抑郁症、焦虑症、精神分裂症、双相情感障碍等。
+- **肝肾功能**: 肝炎、肝硬化、肾功能不全、透析史等。
+- **血液系统**: 贫血、凝血功能障碍等。
+- **传染性疾病**: 乙肝、丙肝、艾滋病(HIV)、梅毒、结核等。
+- **其他重要历史**:
+    - **个人史**: 过敏史（药物、食物、其他）、手术史、麻醉史（及有无不良反应）。
+    - **社会史**: 吸烟史（年限、数量）、饮酒史（年限、数量）。
+
+### B. 必须忽略的内容 (Exclusion Criteria):
+- **绝对忽略**: 与麻醉风险无直接关系的症状细节描述。
+    - **【反例】**: "右上腹持续性隐痛，进食油腻食物后加重，自行控制饮食后可缓解。" -> **这是需要忽略的**。
+    - **【正例】**: "胆囊结石伴慢性胆囊炎" -> **这是需要提取的最终诊断**。
+- **谨慎处理**: 对于不确定的信息，如实记录，不要自行推断。
+
+## 规则 2：结构化输出 (Output Format)
+
+必须以严格的 JSON 格式返回结果，**禁止包含任何JSON格式之外的解释、注释或标题**。如果某个字段没有信息，请使用空数组 [] 或指定的默认值。
+
+请严格按照以下JSON格式返回：
+{
+  "anesthesiaRelevantHistory": [
+    {
+      "condition": "诊断名称",
+      "details": "病史时长、治疗情况、控制水平等关键细节"
+    }
+  ],
+  "currentMedications": [
+    {
+      "drug": "药物名称",
+      "dosage": "剂量和用法",
+      "reason": "服药原因 (例如：用于治疗高血压)"
+    }
+  ],
+  "allergies": {
+    "hasAllergies": false,
+    "details": "如'无'或'青霉素过敏'"
+  },
+  "infectiousDiseases": [
+    {
+      "disease": "疾病名称",
+      "status": "阳性/阴性/未提及"
+    }
+  ]
+}`;
         
         const result = await model.generateContent({
           contents: [{
