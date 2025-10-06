@@ -73,9 +73,42 @@ export async function processImageWithAI(imageBuffer: Buffer): Promise<Extracted
 
 ### C. 用药提取特别强调:
 - **精神科用药【必须提取】**: 所有抗抑郁药、抗焦虑药、抗精神病药、镇静催眠药都必须完整提取
-- **药物名称**: 包括通用名和商品名（如"氟哌嗪吨美利曲"、"百适可"等）
+- **药物名称准确性【关键】**: 
+    - 必须原样复制病历中的药物名称，不要擅自更改或简化
+    - **常见精神科药物名称参考**（请准确识别，不要混淆）：
+      * **氟哌嗪吨美利曲** (flupentixol melitracen，商品名：黛力新) - 抗抑郁复方制剂
+      * **氟哌啶醇** (haloperidol) - 抗精神病药，与氟哌嗪吨美利曲完全不同
+      * **氟西汀** (fluoxetine) - SSRI类抗抑郁药
+      * **帕罗西汀** (paroxetine) - SSRI类抗抑郁药
+      * **舍曲林** (sertraline) - SSRI类抗抑郁药
+      * **文拉法辛** (venlafaxine) - SNRI类抗抑郁药
+      * **米氮平** (mirtazapine) - 抗抑郁药
 - **剂量和用法**: 尽可能提取具体剂量和服用频率
 - **用药原因**: 明确标注是用于治疗什么疾病
+
+### D. 强制逻辑规则【必须遵守】:
+1. **疾病-用药一致性规则**: 如果在currentMedications中某药物的reason字段提到某疾病（例如"治疗抑郁症"），该疾病**必须**同时出现在anesthesiaRelevantHistory中作为独立条目
+2. **精神科疾病独立条目规则**: 所有精神科疾病（抑郁症、焦虑症等）必须作为独立的病史条目在anesthesiaRelevantHistory中明确列出，不能仅在用药原因中提及
+
+### E. 提取示例（严格参照）:
+**示例1：抑郁症患者**
+病历文本："抑郁症2个月，口服氟哌嗪吨美利曲"
+正确提取：
+{
+  "anesthesiaRelevantHistory": [
+    {
+      "condition": "抑郁症",
+      "details": "病史2个月，目前口服氟哌嗪吨美利曲治疗"
+    }
+  ],
+  "currentMedications": [
+    {
+      "drug": "氟哌嗪吨美利曲",
+      "dosage": "口服",
+      "reason": "治疗抑郁症"
+    }
+  ]
+}
 
 ## 规则 2：结构化输出 (Output Format)
 
