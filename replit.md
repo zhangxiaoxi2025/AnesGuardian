@@ -6,6 +6,17 @@ Anesthesia Guardian (麻醉守护神) is a comprehensive medical AI system provi
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes
+
+### 2025-10-09: 病历识别AI精神科信息提取优化
+- **优化内容**: 增强AI提示词，解决精神科疾病缺失和药物名称混淆问题
+- **问题修复**:
+  - 精神科疾病（如抑郁症）现在必须作为独立病史条目提取
+  - 强化药物名称准确性，防止混淆（如氟哌嗪吨美利曲 vs 氟哌啶醇）
+- **技术实现**: 在AI提示词中添加强制逻辑规则和具体示例
+- **修改文件**: `server/routes.ts`, `server/services/medical-record-processor.ts`
+- **详细文档**: `docs/优化记录-病历识别AI精神科信息提取-20251009.md`
+
 ## System Architecture
 
 ### Frontend
