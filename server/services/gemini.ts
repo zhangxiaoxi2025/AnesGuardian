@@ -238,7 +238,7 @@ async function analyzeAnesthesiaDrugInteraction(patientDrug: string, anesthesiaD
       return [
         {
           id: `ai_anesthesia_interaction_${patientDrug}_${anesthesiaDrug}`,
-          drugs: [patientDrug, anesthesiaDrug],
+          drugs: [patientDrug],
           severity: parsedData.severity?.toLowerCase() || 'minor',
           summary: parsedData.summary || parsedData.description?.substring(0, 50) + '...',
           description: parsedData.description,
