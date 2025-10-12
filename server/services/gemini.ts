@@ -107,7 +107,7 @@ export async function analyzeDrugInteractions(drugs: string[], drugObjects: any[
     if (drugs.some(drug => drug.includes('氟哌') || drug.includes('美利曲'))) {
       fallbackInteractions.push({
         id: 'fluphenazine-melitracen-anesthesia-fallback',
-        drugs: ['氟哌噻吨美利曲辛', '麻醉药物'],
+        drugs: ['氟哌噻吨美利曲辛'],
         severity: 'major',
         summary: '氟哌噻吨美利曲辛与麻醉药物存在重要相互作用',
         description: '氟哌噻吨美利曲辛含有抗精神病药和三环抗抑郁药成分，与麻醉药物联合使用可能导致：1）中枢神经系统抑制增强，苏醒延迟；2）QT间期延长，心律失常风险；3）血压不稳定；4）抗胆碱能作用增强。',
