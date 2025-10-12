@@ -395,9 +395,7 @@ export class SimpleAgentOrchestrator {
     if (hasAspirin) {
       interactions.push({
         id: 'aspirin-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('阿司匹林') || med.includes('aspirin') || med.includes('拜阿司匹林')
-        ),
+        drugs: ['阿司匹林'],
         severity: 'major',
         summary: '阿司匹林增加术中出血风险，与麻醉药物存在重要相互作用',
         description: '阿司匹林通过不可逆性抑制血小板聚集，显著增加围术期出血风险。与麻醉药物联合使用时：1）椎管内麻醉可能导致硬膜外血肿；2）神经阻滞时增加血肿风险；3）与肝素类药物协同增加出血；4）影响凝血功能检测的准确性。',
@@ -411,11 +409,16 @@ export class SimpleAgentOrchestrator {
     );
 
     if (hasAntiplatelet) {
+      // 提取实际的抗血小板药物名称
+      let drugName = 'P2Y12抑制剂';
+      if (medications.some(med => med.includes('氯吡格雷'))) drugName = '氯吡格雷';
+      else if (medications.some(med => med.includes('替格瑞洛'))) drugName = '替格瑞洛';
+      else if (medications.some(med => med.includes('倍林达'))) drugName = '倍林达';
+      else if (medications.some(med => med.includes('普拉格雷'))) drugName = '普拉格雷';
+      
       interactions.push({
         id: 'antiplatelet-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('氯吡格雷') || med.includes('替格瑞洛') || med.includes('倍林达') || med.includes('普拉格雷')
-        ),
+        drugs: [drugName],
         severity: 'major',
         summary: 'P2Y12抑制剂与麻醉药物存在重要出血风险',
         description: 'P2Y12受体抑制剂（如氯吡格雷、替格瑞洛）通过不可逆性抑制血小板聚集，围术期出血风险极高。与麻醉相关风险：1）椎管内麻醉禁忌；2）区域神经阻滞高风险；3）术中出血难以控制；4）需要7天以上停药时间。',
@@ -429,11 +432,17 @@ export class SimpleAgentOrchestrator {
     );
 
     if (hasAnticoagulant) {
+      // 提取实际的抗凝药物名称
+      let drugName = '抗凝药物';
+      if (medications.some(med => med.includes('华法林'))) drugName = '华法林';
+      else if (medications.some(med => med.includes('利伐沙班'))) drugName = '利伐沙班';
+      else if (medications.some(med => med.includes('达比加群'))) drugName = '达比加群';
+      else if (medications.some(med => med.includes('阿哌沙班'))) drugName = '阿哌沙班';
+      else if (medications.some(med => med.includes('艾乐妥'))) drugName = '艾乐妥';
+      
       interactions.push({
         id: 'anticoagulant-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('华法林') || med.includes('利伐沙班') || med.includes('达比加群') || med.includes('阿哌沙班') || med.includes('艾乐妥')
-        ),
+        drugs: [drugName],
         severity: 'major',
         summary: '抗凝药物与麻醉技术存在严重出血风险',
         description: '抗凝药物通过抑制凝血因子或凝血酶活性，显著增加围术期出血风险。与麻醉相关风险：1）椎管内麻醉绝对禁忌；2）深部神经阻滞禁忌；3）术中出血难以控制；4）术后血肿风险极高。新型口服抗凝药（NOACs）需要根据肾功能调整停药时间。',
@@ -447,11 +456,17 @@ export class SimpleAgentOrchestrator {
     );
 
     if (hasSSRI) {
+      // 提取实际的SSRI/SNRI药物名称
+      let drugName = 'SSRI/SNRI';
+      if (medications.some(med => med.includes('舍曲林'))) drugName = '舍曲林';
+      else if (medications.some(med => med.includes('氟西汀'))) drugName = '氟西汀';
+      else if (medications.some(med => med.includes('帕罗西汀'))) drugName = '帕罗西汀';
+      else if (medications.some(med => med.includes('西酞普兰'))) drugName = '西酞普兰';
+      else if (medications.some(med => med.includes('文拉法辛'))) drugName = '文拉法辛';
+      
       interactions.push({
         id: 'ssri-opioid-interaction',
-        drugs: medications.filter(med => 
-          med.includes('舍曲林') || med.includes('氟西汀') || med.includes('帕罗西汀') || med.includes('西酞普兰') || med.includes('文拉法辛')
-        ),
+        drugs: [drugName],
         severity: 'major',
         summary: 'SSRI/SNRI药物与阿片类药物存在5-羟色胺综合征风险',
         description: 'SSRI/SNRI抗抑郁药通过抑制5-羟色胺再摄取增加突触间隙5-HT浓度。与阿片类药物（特别是哌替啶、曲马多）联合使用时可能导致5-羟色胺综合征，表现为高热、肌强直、意识改变、自主神经功能紊乱等，危及生命。',
@@ -467,9 +482,7 @@ export class SimpleAgentOrchestrator {
     if (hasDeanxit) {
       interactions.push({
         id: 'deanxit-anesthesia-interaction',
-        drugs: medications.filter(med => 
-          med.includes('氟哌') || med.includes('美利曲') || med.includes('黛力新')
-        ),
+        drugs: ['氟哌噻吨美利曲辛'],
         severity: 'major',
         summary: '氟哌噻吨美利曲辛与麻醉药物存在重要相互作用',
         description: '氟哌噻吨美利曲辛含有抗精神病药氟哌噻吨和三环抗抑郁药美利曲辛，与麻醉药物联合使用可能导致：1）中枢神经系统抑制增强，苏醒延迟；2）QT间期延长，心律失常风险增加；3）血压不稳定，低血压风险；4）抗胆碱能作用增强，口干、便秘等副作用加重。',
