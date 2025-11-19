@@ -6,11 +6,40 @@ import { insertPatientSchema, insertAssessmentSchema, insertMedicalReportSchema 
 import { SimpleAgentOrchestrator } from "./services/simple-agents";
 import { processMedicalReport } from "./services/medical-report-analyzer";
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { aiLimiter, uploadLimiter } from "./middleware/rate-limit";
+import { sanitizeInput, isAllowedFileType, isValidFileSize, sanitizeFilename } from "./utils/sanitize";
+import { NotFoundError, ValidationError, FileUploadError, ForbiddenError } from "./utils/errors";
+import { asyncHandler } from "./middleware/error-handler";
+import { authenticate } from "./middleware/auth";
+import { requirePermission, checkPatientAccess, type UserRole } from "./middleware/permission";
+import { canModifyPatient, canDeletePatient, canSharePatient } from "./utils/rbac";
+import { auditLogger } from "./utils/audit-logger";
+import { permissionCache } from "./utils/permission-cache";
 
 // --- Block for Image Processing Route ---
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const upload = multer({ storage: multer.memoryStorage() });
+
+// 🔒 Enhanced file upload configuration with security validations
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB maximum
+    files: 1, // Only one file at a time
+  },
+  fileFilter: (req, file, cb) => {
+    // Validate file type
+    if (!isAllowedFileType(file.mimetype)) {
+      cb(new FileUploadError('只允许上传JPG、PNG格式的图片文件'));
+      return;
+    }
+
+    // Sanitize filename
+    file.originalname = sanitizeFilename(file.originalname);
+
+    cb(null, true);
+  },
+});
 
 function fileToGenerativePart(buffer: Buffer, mimeType: string) {
   return {
@@ -22,110 +51,283 @@ function fileToGenerativePart(buffer: Buffer, mimeType: string) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Patient routes
-  app.get("/api/patients", async (req, res) => {
-    try {
-      const patients = await storage.getAllPatients();
-      res.json(patients);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get patients" });
-    }
-  });
+  // 🔒 Patient routes with authentication and authorization
 
-  app.post("/api/patients", async (req, res) => {
-    try {
-      console.log("接收到患者数据:", JSON.stringify(req.body, null, 2));
-      const result = insertPatientSchema.safeParse(req.body);
+  /**
+   * GET /api/patients
+   * 获取当前用户可访问的患者列表（根据权限过滤）
+   * 权限: 需要登录
+   */
+  app.get("/api/patients", authenticate, asyncHandler(async (req, res) => {
+    const userId = req.user!.id;
+    const userRole = req.user!.role as UserRole;
+    const userOrgId = req.user!.organizationId;
+
+    const patients = await storage.getPatientsByUser(userId, userRole, userOrgId);
+    res.json(patients);
+  }));
+
+  /**
+   * POST /api/patients
+   * 创建新患者
+   * 权限: admin, doctor（医生和管理员可以创建患者）
+   */
+  app.post("/api/patients",
+    authenticate,
+    requirePermission('patient', 'create'),
+    asyncHandler(async (req, res) => {
+      const userId = req.user!.id;
+
+      // 清理输入数据
+      const sanitizedData = sanitizeInput(req.body);
+
+      console.log("接收到患者数据:", JSON.stringify(sanitizedData, null, 2));
+
+      const result = insertPatientSchema.safeParse({
+        ...sanitizedData,
+        createdBy: userId, // 自动设置创建者
+        organizationId: req.user!.organizationId || null,
+      });
+
       if (!result.success) {
         console.error("患者数据验证失败:", result.error.issues);
-        return res.status(400).json({ message: "Invalid patient data", errors: result.error.issues });
+        throw new ValidationError('Invalid patient data', result.error.issues);
       }
 
       console.log("验证通过，准备创建患者:", result.data);
       const patient = await storage.createPatient(result.data);
       console.log("患者创建成功:", patient);
-      res.status(201).json(patient);
-    } catch (error) {
-      console.error("创建患者时发生错误:", error);
-      res.status(500).json({ message: "Failed to create patient", error: (error as Error).message });
-    }
-  });
 
-  app.get("/api/patients/:id", async (req, res) => {
-    try {
+      // 记录审计日志
+      auditLogger.logDataAccess({
+        userId: req.user!.id,
+        userEmail: req.user!.email,
+        userRole: req.user!.role,
+        action: 'create',
+        resource: 'patient',
+        resourceId: patient.id,
+        status: 'success',
+      });
+
+      res.status(201).json(patient);
+    })
+  );
+
+  /**
+   * GET /api/patients/:id
+   * 获取单个患者详情
+   * 权限: 需要登录，且有权访问该患者
+   */
+  app.get("/api/patients/:id",
+    authenticate,
+    checkPatientAccess,
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
       const patient = await storage.getPatient(patientId);
-      
-      if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      
-      res.json(patient);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get patient" });
-    }
-  });
 
-  app.patch("/api/patients/:id", async (req, res) => {
-    try {
+      if (!patient) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      res.json(patient);
+    })
+  );
+
+  /**
+   * PATCH /api/patients/:id
+   * 更新患者信息
+   * 权限: 创建者、同组织的医生/护士、管理员
+   */
+  app.patch("/api/patients/:id",
+    authenticate,
+    requirePermission('patient', 'update'),
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
-      const result = insertPatientSchema.partial().safeParse(req.body);
-      
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
+      const userOrgId = req.user!.organizationId;
+
+      // 获取患者信息以检查修改权限
+      const existingPatient = await storage.getPatient(patientId);
+      if (!existingPatient) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 检查修改权限（比查看权限更严格）
+      const canModify = canModifyPatient({
+        patientId: existingPatient.id,
+        userId: userId,
+        userRole: userRole,
+        userOrgId: userOrgId,
+        patientCreatedBy: existingPatient.createdBy,
+        patientOrgId: existingPatient.organizationId ?? undefined,
+      });
+
+      if (!canModify) {
+        // 记录失败的审计日志
+        auditLogger.logDataAccess({
+          userId,
+          userEmail: req.user!.email,
+          userRole,
+          action: 'update',
+          resource: 'patient',
+          resourceId: patientId,
+          status: 'failure',
+          errorMessage: 'No modify permission',
+        });
+
+        throw new ForbiddenError('您没有权限修改此患者信息');
+      }
+
+      // 清理并验证输入数据
+      const sanitizedData = sanitizeInput(req.body);
+      const result = insertPatientSchema.partial().safeParse(sanitizedData);
+
       if (!result.success) {
-        return res.status(400).json({ message: "Invalid patient data", errors: result.error.issues });
+        throw new ValidationError('Invalid patient data', result.error.issues);
       }
 
       const patient = await storage.updatePatient(patientId, result.data);
-      
+
       if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
+        throw new NotFoundError('Patient not found');
       }
-      
+
+      // 使缓存失效（患者数据已变更）
+      permissionCache.invalidateResource('patient', patientId);
+
+      // 记录成功的审计日志
+      auditLogger.logDataAccess({
+        userId,
+        userEmail: req.user!.email,
+        userRole,
+        action: 'update',
+        resource: 'patient',
+        resourceId: patientId,
+        status: 'success',
+      });
+
       res.json(patient);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update patient" });
-    }
-  });
+    })
+  );
 
-  app.delete("/api/patients/:id", async (req, res) => {
-    try {
+  /**
+   * DELETE /api/patients/:id
+   * 删除患者
+   * 权限: 管理员、创建者（仅医生）
+   */
+  app.delete("/api/patients/:id",
+    authenticate,
+    requirePermission('patient', 'delete'),
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
-      const deleted = await storage.deletePatient(patientId);
-      
-      if (!deleted) {
-        return res.status(404).json({ message: "Patient not found" });
-      }
-      
-      res.json({ message: "Patient deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete patient" });
-    }
-  });
+      const userId = req.user!.id;
+      const userRole = req.user!.role as UserRole;
 
-  // Assessment routes
-  app.get("/api/patients/:id/assessment", async (req, res) => {
-    try {
+      // 获取患者信息以检查删除权限
+      const existingPatient = await storage.getPatient(patientId);
+      if (!existingPatient) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 检查删除权限（最严格：只有管理员和创建者医生）
+      const canDelete = canDeletePatient({
+        patientId: existingPatient.id,
+        userId: userId,
+        userRole: userRole,
+        userOrgId: req.user!.organizationId,
+        patientCreatedBy: existingPatient.createdBy,
+        patientOrgId: existingPatient.organizationId ?? undefined,
+      });
+
+      if (!canDelete) {
+        // 记录失败的审计日志
+        auditLogger.logSensitiveOperation({
+          userId,
+          userEmail: req.user!.email,
+          userRole,
+          action: 'delete',
+          resource: 'patient',
+          resourceId: patientId,
+          status: 'failure',
+          errorMessage: 'No delete permission',
+          details: {
+            attemptedBy: userId,
+            patientCreator: existingPatient.createdBy,
+          },
+        });
+
+        throw new ForbiddenError('您没有权限删除此患者');
+      }
+
+      const deleted = await storage.deletePatient(patientId);
+
+      if (!deleted) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 使缓存失效（患者已删除）
+      permissionCache.invalidateResource('patient', patientId);
+
+      // 记录成功的审计日志（敏感操作）
+      auditLogger.logSensitiveOperation({
+        userId,
+        userEmail: req.user!.email,
+        userRole,
+        action: 'delete',
+        resource: 'patient',
+        resourceId: patientId,
+        status: 'success',
+        details: {
+          patientName: existingPatient.name,
+          patientAge: existingPatient.age,
+          deletedAt: new Date().toISOString(),
+        },
+      });
+
+      res.json({ message: '患者已成功删除' });
+    })
+  );
+
+  // 🔒 Assessment routes with authentication
+
+  /**
+   * GET /api/patients/:id/assessment
+   * 获取患者的评估结果
+   * 权限: 需要登录，且有权访问该患者
+   */
+  app.get("/api/patients/:id/assessment",
+    authenticate,
+    checkPatientAccess,
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
       const assessment = await storage.getAssessmentByPatientId(patientId);
-      
-      if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
-      }
-      
-      res.json(assessment);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to get assessment" });
-    }
-  });
 
-  app.post("/api/patients/:id/assess", async (req, res) => {
-    try {
+      if (!assessment) {
+        throw new NotFoundError('Assessment not found');
+      }
+
+      res.json(assessment);
+    })
+  );
+
+  /**
+   * POST /api/patients/:id/assess
+   * 开始AI辅助评估
+   * 权限: 需要登录，且有权访问该患者
+   * 速率限制: 10次/分钟
+   */
+  app.post("/api/patients/:id/assess",
+    authenticate,
+    checkPatientAccess,
+    aiLimiter,
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
-      
+
       // Check if patient exists
       const patient = await storage.getPatient(patientId);
       if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
+        throw new NotFoundError('患者');
       }
 
       // Create initial assessment
@@ -145,26 +347,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       orchestrator.runAssessment(patientId).catch(console.error);
 
       res.json({ message: "Assessment started successfully", assessmentId: assessment.id });
-    } catch (error) {
-      console.error("Assessment error:", error);
-      res.status(500).json({ message: "Failed to start assessment" });
-    }
-  });
+    })
+  );
 
-  // Reset assessment route
-  app.post("/api/patients/:id/reset-assessment", async (req, res) => {
-    try {
+  /**
+   * POST /api/patients/:id/reset-assessment
+   * 重置患者评估
+   * 权限: 需要登录，且有权访问该患者
+   */
+  app.post("/api/patients/:id/reset-assessment",
+    authenticate,
+    checkPatientAccess,
+    asyncHandler(async (req, res) => {
       const patientId = parseInt(req.params.id);
-      
+
       // Check if patient exists
       const patient = await storage.getPatient(patientId);
       if (!patient) {
-        return res.status(404).json({ message: "Patient not found" });
+        throw new NotFoundError('Patient not found');
       }
 
       // Find existing assessment
       let assessment = await storage.getAssessmentByPatientId(patientId);
-      
+
       if (assessment) {
         // Reset existing assessment
         const updatedAssessment = await storage.updateAssessment(assessment.id, {
@@ -176,17 +381,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recommendations: [],
           agentStatus: {}
         });
-        
+
         if (updatedAssessment) {
           console.log(`Assessment ${updatedAssessment.id} reset for patient ${patientId}`);
-          
+
           // Start new agent orchestration
           const orchestrator = new SimpleAgentOrchestrator(updatedAssessment.id);
           orchestrator.runAssessment(patientId).catch(console.error);
-          
+
           assessment = updatedAssessment;
         }
-        
+
         res.json({ message: "Assessment reset and restarted successfully", assessmentId: assessment?.id });
       } else {
         // Create new assessment if none exists
@@ -200,20 +405,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
           recommendations: [],
           agentStatus: {}
         });
-        
+
         console.log(`New assessment ${assessment.id} created for patient ${patientId}`);
-        
+
         // Start agent orchestration
         const orchestrator = new SimpleAgentOrchestrator(assessment.id);
         orchestrator.runAssessment(patientId).catch(console.error);
-        
+
         res.json({ message: "New assessment started successfully", assessmentId: assessment.id });
       }
-    } catch (error) {
-      console.error("Reset assessment error:", error);
-      res.status(500).json({ message: "Failed to reset assessment" });
-    }
-  });
+    })
+  );
+
+  // 🔒 Patient sharing routes
+
+  /**
+   * POST /api/patients/:id/share
+   * 共享患者给指定用户
+   * 权限: 需要有共享权限（创建者医生、管理员）
+   */
+  app.post("/api/patients/:id/share",
+    authenticate,
+    asyncHandler(async (req, res) => {
+      const patientId = parseInt(req.params.id);
+      const { userId: sharedWithUserId } = req.body;
+      const currentUserId = req.user!.id;
+      const currentUserRole = req.user!.role as UserRole;
+
+      if (!sharedWithUserId) {
+        throw new ValidationError('缺少共享目标用户ID');
+      }
+
+      // 获取患者信息
+      const patient = await storage.getPatient(patientId);
+      if (!patient) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 检查共享权限
+      const canShare = canSharePatient({
+        patientId: patient.id,
+        userId: currentUserId,
+        userRole: currentUserRole,
+        userOrgId: req.user!.organizationId,
+        patientCreatedBy: patient.createdBy,
+        patientOrgId: patient.organizationId ?? undefined,
+      });
+
+      if (!canShare) {
+        // 记录失败的审计日志
+        auditLogger.logSensitiveOperation({
+          userId: currentUserId,
+          userEmail: req.user!.email,
+          userRole: currentUserRole,
+          action: 'share',
+          resource: 'patient',
+          resourceId: patientId,
+          status: 'failure',
+          errorMessage: 'No share permission',
+          details: {
+            targetUserId: sharedWithUserId,
+          },
+        });
+
+        throw new ForbiddenError('您没有权限共享此患者');
+      }
+
+      const success = await storage.sharePatient(patientId, sharedWithUserId);
+
+      if (!success) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 使缓存失效（共享列表已变更）
+      permissionCache.invalidateResource('patient', patientId);
+      permissionCache.invalidateUser(sharedWithUserId); // 被共享用户的权限也变更
+
+      // 记录成功的审计日志（敏感操作）
+      auditLogger.logSensitiveOperation({
+        userId: currentUserId,
+        userEmail: req.user!.email,
+        userRole: currentUserRole,
+        action: 'share',
+        resource: 'patient',
+        resourceId: patientId,
+        status: 'success',
+        details: {
+          sharedWithUserId,
+          patientName: patient.name,
+          sharedAt: new Date().toISOString(),
+        },
+      });
+
+      res.json({ message: '患者共享成功' });
+    })
+  );
+
+  /**
+   * DELETE /api/patients/:id/share/:userId
+   * 取消共享患者
+   * 权限: 需要有共享权限（创建者医生、管理员）
+   */
+  app.delete("/api/patients/:id/share/:userId",
+    authenticate,
+    asyncHandler(async (req, res) => {
+      const patientId = parseInt(req.params.id);
+      const sharedWithUserId = req.params.userId;
+      const currentUserId = req.user!.id;
+      const currentUserRole = req.user!.role as UserRole;
+
+      // 获取患者信息
+      const patient = await storage.getPatient(patientId);
+      if (!patient) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 检查取消共享权限（同共享权限）
+      const canShare = canSharePatient({
+        patientId: patient.id,
+        userId: currentUserId,
+        userRole: currentUserRole,
+        userOrgId: req.user!.organizationId,
+        patientCreatedBy: patient.createdBy,
+        patientOrgId: patient.organizationId ?? undefined,
+      });
+
+      if (!canShare) {
+        // 记录失败的审计日志
+        auditLogger.logSensitiveOperation({
+          userId: currentUserId,
+          userEmail: req.user!.email,
+          userRole: currentUserRole,
+          action: 'unshare',
+          resource: 'patient',
+          resourceId: patientId,
+          status: 'failure',
+          errorMessage: 'No unshare permission',
+          details: {
+            targetUserId: sharedWithUserId,
+          },
+        });
+
+        throw new ForbiddenError('您没有权限取消共享此患者');
+      }
+
+      const success = await storage.unsharePatient(patientId, sharedWithUserId);
+
+      if (!success) {
+        throw new NotFoundError('Patient not found');
+      }
+
+      // 使缓存失效（共享列表已变更）
+      permissionCache.invalidateResource('patient', patientId);
+      permissionCache.invalidateUser(sharedWithUserId); // 被取消共享用户的权限变更
+
+      // 记录成功的审计日志（敏感操作）
+      auditLogger.logSensitiveOperation({
+        userId: currentUserId,
+        userEmail: req.user!.email,
+        userRole: currentUserRole,
+        action: 'unshare',
+        resource: 'patient',
+        resourceId: patientId,
+        status: 'success',
+        details: {
+          unsharedUserId: sharedWithUserId,
+          patientName: patient.name,
+          unsharedAt: new Date().toISOString(),
+        },
+      });
+
+      res.json({ message: '患者共享已取消' });
+    })
+  );
 
   // Drug routes
   app.get("/api/drugs/search", async (req, res) => {
@@ -452,24 +816,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Chat endpoint
-  app.post("/api/chat", async (req, res) => {
-    try {
-      const { message } = req.body;
-      
-      if (!message) {
-        return res.status(400).json({ message: "Message is required" });
-      }
+  // 💬 AI Chat endpoint with rate limiting
+  app.post("/api/chat", aiLimiter, asyncHandler(async (req, res) => {
+    const { message } = sanitizeInput(req.body);
 
-      const { getChatResponse } = await import("./services/chat");
-      const response = await getChatResponse(message);
-      
-      res.json({ response });
-    } catch (error) {
-      console.error("Chat error:", error);
-      res.status(500).json({ message: "Chat service is temporarily unavailable" });
+    if (!message) {
+      throw new ValidationError("聊天消息不能为空");
     }
-  });
+
+    const { getChatResponse } = await import("./services/chat");
+    const response = await getChatResponse(message);
+
+    res.json({ response });
+  }));
 
   // Clinical Guidelines endpoint
   app.get("/api/clinical-guidelines", async (req, res) => {
@@ -1059,69 +1418,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Medical Report Upload endpoint with file handling
-  app.post("/api/medical-reports/upload", upload.single('imageFile'), async (req, res) => {
-    try {
-      console.log("医疗报告上传请求:");
-      console.log("- 文件:", req.file ? req.file.originalname : '无');
-      console.log("- 表单数据:", req.body);
-      
-      const { reportType, patientId, uploadMethod, textContent } = req.body;
-      
-      if (!reportType) {
-        return res.status(400).json({ message: "Report type is required" });
-      }
-      
-      if (!patientId) {
-        return res.status(400).json({ message: "Patient ID is required" });
-      }
-      
-      let imageBase64 = null;
-      let textInput = null;
-      
-      if (uploadMethod === 'image' && req.file) {
-        imageBase64 = req.file.buffer.toString('base64');
-      } else if (uploadMethod === 'text' && textContent) {
-        textInput = textContent;
-      } else {
-        return res.status(400).json({ message: "Either image file or text content is required" });
-      }
-      
-      // 处理医疗报告
-      const { extractedText, analysisResult } = await processMedicalReport(
-        imageBase64 || undefined,
-        textInput || undefined,
-        reportType
-      );
+  // 📤 Medical Report Upload endpoint with security validations
+  app.post("/api/medical-reports/upload", uploadLimiter, upload.single('imageFile'), asyncHandler(async (req, res) => {
+    console.log("医疗报告上传请求:");
+    console.log("- 文件:", req.file ? req.file.originalname : '无');
+    console.log("- 表单数据:", req.body);
 
-      // 自动保存报告到数据库
-      const reportData = {
-        patientId: parseInt(patientId),
-        reportType,
-        uploadMethod: uploadMethod as 'image' | 'text',
-        originalContent: imageBase64 || textInput,
-        extractedText,
-        analysisResult,
-        status: 'analyzed' as const,
-      };
-      
-      const savedReport = await storage.createMedicalReport(reportData);
-      console.log("报告上传并分析完成:", savedReport.id);
+    const { reportType, patientId, uploadMethod, textContent } = sanitizeInput(req.body);
 
-      res.json({
-        extractedText,
-        analysisResult,
-        savedReport,
-        message: "报告上传分析完成并已保存"
-      });
-    } catch (error) {
-      console.error("医疗报告上传失败:", error);
-      res.status(500).json({ 
-        message: "Medical report upload failed", 
-        error: (error as Error).message 
-      });
+    if (!reportType) {
+      throw new ValidationError("报告类型必填");
     }
-  });
+
+    if (!patientId) {
+      throw new ValidationError("患者ID必填");
+    }
+
+    let imageBase64 = null;
+    let textInput = null;
+
+    if (uploadMethod === 'image' && req.file) {
+      // Validate file size
+      if (!isValidFileSize(req.file.size)) {
+        throw new FileUploadError('文件大小超过10MB限制');
+      }
+      imageBase64 = req.file.buffer.toString('base64');
+    } else if (uploadMethod === 'text' && textContent) {
+      textInput = textContent;
+    } else {
+      throw new ValidationError("必���提供图片文件或文本内容");
+    }
+
+    // 处理医疗报告
+    const { extractedText, analysisResult } = await processMedicalReport(
+      imageBase64 || undefined,
+      textInput || undefined,
+      reportType
+    );
+
+    // 自动保存报告到数据库
+    const reportData = {
+      patientId: parseInt(patientId),
+      reportType,
+      uploadMethod: uploadMethod as 'image' | 'text',
+      originalContent: imageBase64 || textInput,
+      extractedText,
+      analysisResult,
+      status: 'analyzed' as const,
+    };
+
+    const savedReport = await storage.createMedicalReport(reportData);
+    console.log("报告上传并分析完成:", savedReport.id);
+
+    res.json({
+      extractedText,
+      analysisResult,
+      savedReport,
+      message: "报告上传分析完成并已保存"
+    });
+  }));
 
   app.post("/api/medical-reports/analyze", async (req, res) => {
     try {

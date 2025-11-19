@@ -1,9 +1,74 @@
-import { pgTable, text, serial, integer, boolean, timestamp, json } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, json, uuid, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// ===================================
+// 用户与组织管理表 (User & Organization Management)
+// ===================================
+
+// 用户表 - 从Supabase同步的用户信息
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey(), // 使用Supabase的UUID
+  email: text("email").notNull().unique(),
+  displayName: text("display_name"),
+  role: text("role").notNull().default("user"), // 'admin', 'doctor', 'nurse', 'user'
+  organizationId: integer("organization_id"),
+  avatar: text("avatar"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  lastLoginAt: timestamp("last_login_at"),
+}, (table) => ({
+  emailIdx: index("users_email_idx").on(table.email),
+  orgIdx: index("users_org_idx").on(table.organizationId),
+}));
+
+// 组织/团队表
+export const organizations = pgTable("organizations", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull().default("personal"), // 'hospital', 'clinic', 'team', 'personal'
+  description: text("description"),
+  settings: json("settings").$type<{
+    allowSharing?: boolean;
+    requireApproval?: boolean;
+    [key: string]: any;
+  }>().default({}).notNull(),
+  createdBy: uuid("created_by"),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  nameIdx: index("orgs_name_idx").on(table.name),
+}));
+
+// 用户-组织关联表
+export const userOrganizations = pgTable("user_organizations", {
+  id: serial("id").primaryKey(),
+  userId: uuid("user_id").notNull(),
+  organizationId: integer("organization_id").notNull(),
+  role: text("role").notNull().default("member"), // 'owner', 'admin', 'member'
+  permissions: json("permissions").$type<{
+    canCreate?: boolean;
+    canEdit?: boolean;
+    canDelete?: boolean;
+    canShare?: boolean;
+    [key: string]: any;
+  }>().default({}).notNull(),
+  joinedAt: timestamp("joined_at").defaultNow(),
+}, (table) => ({
+  userOrgIdx: index("user_orgs_user_org_idx").on(table.userId, table.organizationId),
+}));
+
+// ===================================
+// 核心业务表 (Core Business Tables)
+// ===================================
+
 export const patients = pgTable("patients", {
   id: serial("id").primaryKey(),
+  // 用户关联字段 (新增)
+  createdBy: uuid("created_by").notNull(), // 创建该患者的用户ID
+  organizationId: integer("organization_id"), // 所属组织ID
+  sharedWith: json("shared_with").$type<string[]>().default([]).notNull(), // 共享给的用户ID数组
+  // 患者基本信息
   name: text("name").notNull(),
   age: integer("age").notNull(),
   gender: text("gender").notNull(),
@@ -15,7 +80,11 @@ export const patients = pgTable("patients", {
   vitalSigns: json("vital_signs").$type<Record<string, any>>().default({}).notNull(),
   labResults: json("lab_results").$type<Record<string, any>>().default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => ({
+  createdByIdx: index("patients_created_by_idx").on(table.createdBy),
+  orgIdx: index("patients_org_idx").on(table.organizationId),
+  createdAtIdx: index("patients_created_at_idx").on(table.createdAt),
+}));
 
 export const assessments = pgTable("assessments", {
   id: serial("id").primaryKey(),
@@ -44,14 +113,31 @@ export const agentLogs = pgTable("agent_logs", {
 export const drugs = pgTable("drugs", {
   id: serial("id").primaryKey(),
   name: text("name").notNull().unique(),
+  englishName: text("english_name"),
   aliases: json("aliases").$type<string[]>().default([]).notNull(),
   category: text("category").notNull(), // '麻醉药物', '心血管药物', '抗凝药物' 等
+  // 药物详细信息
+  mechanism: text("mechanism"), // 作用机制
+  indications: json("indications").$type<string[]>().default([]),
   stopGuideline: text("stop_guideline"), // 术前停药指南
   contraindications: json("contraindications").$type<string[]>().default([]),
   sideEffects: json("side_effects").$type<string[]>().default([]),
+  interactions: json("interactions").$type<any>().default({}),
+  dosage: text("dosage"),
+  // 麻醉相关字段 (新增)
+  anesthesiaRelevant: boolean("anesthesia_relevant").default(false).notNull(), // 是否为麻醉相关药物
+  anesthesiaCategory: text("anesthesia_category"), // 麻醉药物分类
+  isCommonAnesthesia: boolean("is_common_anesthesia").default(false).notNull(), // 是否为常用麻醉药
+  source: text("source").default("seed").notNull(), // 'seed', 'ai', 'manual' - 数据来源
+  searchCount: integer("search_count").default(0).notNull(), // 搜索次数统计
+  // 时间戳
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  nameIdx: index("drugs_name_idx").on(table.name),
+  categoryIdx: index("drugs_category_idx").on(table.category),
+  commonAnesthesiaIdx: index("drugs_common_anesthesia_idx").on(table.isCommonAnesthesia),
+}));
 
 export const medicalReports = pgTable("medical_reports", {
   id: serial("id").primaryKey(),
@@ -68,11 +154,30 @@ export const medicalReports = pgTable("medical_reports", {
 });
 
 // Zod schemas for validation
+// 用户和组织相关schema
+export const insertUserSchema = createInsertSchema(users).omit({
+  createdAt: true,
+  lastLoginAt: true,
+});
+
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertUserOrganizationSchema = createInsertSchema(userOrganizations).omit({
+  id: true,
+  joinedAt: true,
+});
+
+// 患者相关schema
 export const insertPatientSchema = createInsertSchema(patients).omit({
   id: true,
   createdAt: true,
 }).extend({
   surgeryType: z.string().optional().default(""),
+  createdBy: z.string().uuid(),
+  sharedWith: z.array(z.string().uuid()).optional().default([]),
 });
 
 export const insertAssessmentSchema = createInsertSchema(assessments).omit({
@@ -98,6 +203,17 @@ export const insertMedicalReportSchema = createInsertSchema(medicalReports).omit
 });
 
 // TypeScript types
+// 用户和组织类型
+export type User = typeof users.$inferSelect;
+export type InsertUser = z.infer<typeof insertUserSchema>;
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
+export type UserOrganization = typeof userOrganizations.$inferSelect;
+export type InsertUserOrganization = z.infer<typeof insertUserOrganizationSchema>;
+
+// 患者和评估类型
 export type Patient = typeof patients.$inferSelect;
 export type InsertPatient = z.infer<typeof insertPatientSchema>;
 

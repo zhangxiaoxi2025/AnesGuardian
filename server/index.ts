@@ -1,8 +1,12 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import { registerRoutes } from './routes';
 import { seedDrugs } from './seed';
 import { setupVite, serveStatic } from './vite';
+import { securityHeaders, getCorsOptions } from './middleware/security';
+import { apiLimiter } from './middleware/rate-limit';
+import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 // Environment validation function
 function validateEnvironmentVariables() {
@@ -51,13 +55,13 @@ function validateEnvironmentVariables() {
 
   // Production environment specific checks
   if (process.env.NODE_ENV === 'production') {
-    const productionRequired = ['SESSION_SECRET'];
+    const productionRequired = ['SESSION_SECRET', 'ALLOWED_ORIGINS'];
     const missingProduction = productionRequired.filter(varName => !process.env[varName]);
-    
+
     if (missingProduction.length > 0) {
       console.error('❌ 生产环境缺少必需的环境变量:');
       missingProduction.forEach(missing => console.error(`   - ${missing}`));
-      console.error('\n💡 生产环境必须设置会话密钥以确保安全性。');
+      console.error('\n💡 生产环境必须设置会话密钥和允许的CORS源以确保安全性。');
       process.exit(1);
     }
   }
@@ -79,8 +83,19 @@ validateEnvironmentVariables();
 
 const app = express();
 
-// Middleware
+// 🔒 Security middleware - 安全中间件
+// Apply security headers (helmet)
+app.use(securityHeaders);
+
+// Configure CORS
+app.use(cors(getCorsOptions()));
+
+// Apply global rate limiting
+app.use(apiLimiter);
+
+// Body parsing middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // Database seeding
 console.log("🌱 开始检查药物数据库...");
@@ -93,15 +108,22 @@ seedDrugs().then(() => {
 // Server startup
 const PORT = parseInt(process.env.PORT || '5000', 10);
 registerRoutes(app).then(async server => {
+    // 404 handler - must be after all routes
+    app.use(notFoundHandler);
+
+    // Global error handler - must be last
+    app.use(errorHandler);
+
     // Setup Vite in development
     if (process.env.NODE_ENV !== 'production') {
         await setupVite(app, server);
     } else {
         serveStatic(app);
     }
-    
+
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`${new Date().toLocaleTimeString()} [express] serving on port ${PORT}`);
+        console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting`);
     });
 }).catch(error => {
     console.error("❌ 服务器启动失败:", error);
